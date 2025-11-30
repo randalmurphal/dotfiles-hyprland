@@ -191,6 +191,23 @@ layerrule = ignorezero, ags-.*
 layerrule = noanim, ags-launcher  # Disable animation for dynamic resize
 ```
 
+### Smart Gaps (Hyprland 0.52+)
+The old `no_gaps_when_only` option was removed. Use workspace rules with window count selectors:
+```
+# w[tv1] = workspace with 1 tiled visible window
+workspace = w[tv1], gapsout:0, gapsin:0
+windowrulev2 = bordersize 0, floating:0, onworkspace:w[tv1]
+windowrulev2 = noshadow, floating:0, onworkspace:w[tv1]
+```
+
+### Window Decoration
+Using purple glow shadow instead of borders:
+```
+border_size = 0
+shadow:color = rgba(157, 78, 221, 0.5)      # Active - purple glow
+shadow:color_inactive = rgba(0, 0, 0, 0.4)  # Inactive - dark shadow
+```
+
 **Popup Backdrop Architecture:**
 The backdrop enables two behaviors: click-away (close popup by clicking outside) AND click-between-icons (switch popups by clicking different bar icons).
 
@@ -220,11 +237,12 @@ Layer hierarchy: `BACKGROUND < BOTTOM < TOP < OVERLAY`
 - Focus handlers (`notify::is-active`) → race conditions with toggle logic
 
 ### Workspace-to-Monitor Mapping
+Primary layout: 1=center (Chrome), 2=left (Ghostty), 3=right
 ```typescript
 const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
-  "DP-3": [1, 2, 3, 10],      // Center (primary)
-  "DP-1": [4, 5, 6],          // Left
-  "HDMI-A-1": [7, 8, 9],      // Right
+  "DP-3": [1, 4, 7, 10],      // Center (primary) - Chrome default
+  "DP-1": [2, 5, 8],          // Left - Ghostty default
+  "HDMI-A-1": [3, 6, 9],      // Right
 }
 ```
 

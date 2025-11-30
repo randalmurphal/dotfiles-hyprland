@@ -1,8 +1,9 @@
 // Workspace-to-monitor mapping (from hyprland.conf)
+// Primary layout: 1=center, 2=left, 3=right
 export const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
-  "DP-3": [1, 2, 3, 10],      // Center (primary)
-  "DP-1": [4, 5, 6],          // Left
-  "HDMI-A-1": [7, 8, 9],      // Right
+  "DP-3": [1, 4, 7, 10],      // Center (primary) - Chrome default
+  "DP-1": [2, 5, 8],          // Left - Ghostty default
+  "HDMI-A-1": [3, 6, 9],      // Right
 }
 
 // Location for sunrise/sunset calculation (Austin, TX area)
