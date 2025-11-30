@@ -85,7 +85,9 @@ ags toggle launcher
 │   │   ├── index.tsx       # Bar window composition
 │   │   ├── Workspaces.tsx  # Per-monitor workspace indicators
 │   │   ├── Clients.tsx     # Active window icons
-│   │   └── Clock.tsx       # Time and date display
+│   │   ├── Clock.tsx       # Time and date display
+│   │   ├── SystemMonitor.tsx # CPU/RAM/GPU/VRAM stats
+│   │   └── Weather.tsx     # Weather icon and temp in bar
 │   ├── system-tray/        # Tray button components
 │   │   ├── index.tsx       # SystemTray composition
 │   │   ├── Audio.tsx       # Volume button
@@ -104,9 +106,11 @@ ags toggle launcher
 │       ├── network/
 │       │   ├── WifiPopup.tsx
 │       │   └── network-utils.ts
-│       └── bluetooth/
-│           ├── BluetoothPopup.tsx
-│           └── bluetooth-utils.ts
+│       ├── bluetooth/
+│       │   ├── BluetoothPopup.tsx
+│       │   └── bluetooth-utils.ts
+│       └── weather/
+│           └── WeatherPopup.tsx  # Weather popup with forecast and location search
 ├── @girs/                  # Type definitions (gitignored)
 ├── screenshots/            # Reference screenshots
 └── CLAUDE.md               # This file
@@ -182,10 +186,33 @@ layerrule = ignorezero, ags-.*
 layerrule = noanim, ags-launcher  # Disable animation for dynamic resize
 ```
 
-**Note:** The backdrop uses namespace `popup-backdrop` (not `ags-*`) to avoid blur.
-The `ignorezero` rule ignores transparent areas for input - backdrop needs minimal alpha (0.01) to receive clicks.
+**Popup Backdrop Architecture:**
+The backdrop enables two behaviors: click-away (close popup by clicking outside) AND click-between-icons (switch popups by clicking different bar icons).
 
-**Backdrop Layer Configuration:** The backdrop must be at `Layer.TOP` to receive clicks, but must NOT anchor to the TOP edge (only BOTTOM | LEFT | RIGHT) with a marginTop to avoid covering the bar. If backdrop covers the bar, clicking bar buttons will hit the backdrop first. If backdrop is at BOTTOM layer, clicks won't reach it at all.
+Layer hierarchy: `BACKGROUND < BOTTOM < TOP < OVERLAY`
+
+| Component | Layer | Why |
+|-----------|-------|-----|
+| Bar | OVERLAY | Above backdrop, receives clicks directly |
+| Popups | OVERLAY | Above backdrop, receive clicks directly |
+| Backdrop | TOP | Below OVERLAY, catches remaining clicks |
+
+**Critical configuration:**
+- Backdrop namespace: `popup-backdrop` (NOT `ags-*`) to avoid blur from Hyprland rules
+- Backdrop marginTop: 38px to not cover bar area
+- Backdrop anchors all sides but margin creates gap at top
+- Backdrop has minimal alpha (0.01) so it's clickable but nearly invisible
+
+**Why this works:**
+- Clicks on bar icons → hit bar (OVERLAY, above backdrop)
+- Clicks on popups → hit popups (OVERLAY, above backdrop)
+- Clicks elsewhere below bar → hit backdrop (TOP) → closes popup
+
+**What doesn't work (lessons learned):**
+- Backdrop at OVERLAY same as bar → blocks bar clicks (z-order within layer is creation order)
+- Backdrop at TOP covering full screen → still blocks bar (layer-shell input routing issue)
+- Using `ignorezero` with transparent region → requires `ags-*` namespace which adds blur
+- Focus handlers (`notify::is-active`) → race conditions with toggle logic
 
 ### Workspace-to-Monitor Mapping
 ```typescript

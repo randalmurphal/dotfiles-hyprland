@@ -345,7 +345,7 @@ export default function WeatherPopup() {
     application: app,
     anchor: Astal.WindowAnchor.TOP,
     exclusivity: Astal.Exclusivity.IGNORE,
-    layer: Astal.Layer.TOP,
+    layer: Astal.Layer.OVERLAY,
     keymode: Astal.Keymode.ON_DEMAND,
     visible: false,
   })

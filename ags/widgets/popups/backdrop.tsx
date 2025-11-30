@@ -3,10 +3,11 @@ import Astal from "gi://Astal?version=4.0"
 import Gtk from "gi://Gtk?version=4.0"
 import { closeAllPopups } from "../../lib/popup-manager"
 
-// Transparent backdrop below bar to catch outside clicks
-// Does NOT cover bar area - only BOTTOM|LEFT|RIGHT with top margin
+// Backdrop at TOP layer, below bar/popups (OVERLAY)
+// marginTop keeps it from covering bar - bar clicks go directly to bar
+// Click-away works for area below bar where popups appear
 export default function PopupBackdrop() {
-  const { BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
+  const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
 
   const backdropButton = new Gtk.Button({
     hexpand: true,
@@ -20,16 +21,14 @@ export default function PopupBackdrop() {
 
   const win = new Astal.Window({
     name: "popup-backdrop",
-    namespace: "popup-backdrop",
+    namespace: "popup-backdrop",  // No ags-* prefix = no blur
     application: app,
-    // Don't anchor TOP - let bar area remain clickable
-    anchor: BOTTOM | LEFT | RIGHT,
+    anchor: TOP | BOTTOM | LEFT | RIGHT,
     exclusivity: Astal.Exclusivity.IGNORE,
-    layer: Astal.Layer.OVERLAY,
+    layer: Astal.Layer.TOP,  // Below OVERLAY (bar/popups)
     keymode: Astal.Keymode.NONE,
     visible: false,
-    // Stay below the bar
-    marginTop: 38,
+    marginTop: 38,  // Don't cover bar area
   })
   win.add_css_class("PopupBackdrop")
   win.set_child(backdropButton)
