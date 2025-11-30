@@ -1,6 +1,7 @@
 // ============================================================================
 // AGS STYLE - Dark Purple Theme (GTK4) - macOS-inspired
 // ============================================================================
+@use "sass:color";
 
 $bg-dark: #0d0d0d;
 $bg-surface: #121218;
@@ -371,7 +372,6 @@ window.AudioPopup {
     padding: 4px;
     background: rgba(0, 0, 0, 0.15);
     border-radius: 8px;
-    overflow: hidden;
 
     &.collapsed {
       // GTK4 doesn't support max-height animations well, so we hide it
@@ -501,7 +501,6 @@ window.AudioPopup {
       color: $text-secondary;
       font-size: 12px;
       font-weight: 500;
-      hexpand: true;
 
       &:hover {
         background: $bg-hover;
@@ -580,7 +579,7 @@ window.BrightnessPopup {
         background: $purple-primary;
 
         &:hover {
-          background: lighten($purple-primary, 10%);
+          background: color.adjust($purple-primary, $lightness: 10%);
         }
       }
     }
@@ -633,7 +632,7 @@ window.BrightnessPopup {
         border-color: $purple-primary;
 
         &:hover {
-          background: linear-gradient(135deg, $purple-secondary, lighten($purple-primary, 10%));
+          background: linear-gradient(135deg, $purple-secondary, color.adjust($purple-primary, $lightness: 10%));
         }
       }
     }
@@ -649,7 +648,7 @@ window.BrightnessPopup {
 
     &:hover {
       background: rgba($purple-primary, 0.2);
-      color: lighten($purple-primary, 10%);
+      color: color.adjust($purple-primary, $lightness: 10%);
     }
 
     label {
@@ -690,7 +689,7 @@ window.BrightnessPopup {
         border-color: $purple-primary;
 
         &:hover {
-          background: linear-gradient(135deg, $purple-secondary, lighten($purple-primary, 10%));
+          background: linear-gradient(135deg, $purple-secondary, color.adjust($purple-primary, $lightness: 10%));
         }
       }
     }
@@ -1376,7 +1375,6 @@ window.MediaPopup {
         font-weight: 600;
         color: $text-primary;
         margin-bottom: 4px;
-        max-width: 260px;
       }
 
       .track-artist {
@@ -1396,7 +1394,6 @@ window.MediaPopup {
     margin-bottom: 14px;
 
     .progress-info {
-      justify-content: center;
 
       .time-label {
         font-size: 11px;
@@ -1418,7 +1415,7 @@ window.MediaPopup {
         @include smooth-button;
         background: $bg-elevated;
         color: $text-secondary;
-        border-radius: 50%;
+        border-radius: 999px;
         min-width: 40px;
         min-height: 40px;
         font-size: 18px;
@@ -1454,7 +1451,6 @@ window.NotificationPopup {
   .notification-popup-content {
     @include popup-content;
     min-width: 340px;
-    max-width: 400px;
   }
 
   .notification-popup-header {
@@ -1541,7 +1537,6 @@ window.NotificationPopup {
         .time-ago {
           font-size: 10px;
           color: $text-dim;
-          margin-left: auto;
         }
 
         .dismiss-btn {
@@ -1601,7 +1596,6 @@ window.NotificationPopup {
       font-size: 12px;
       color: $text-dim;
       padding: 40px 20px;
-      text-align: center;
     }
   }
 }
@@ -1611,12 +1605,8 @@ window.NotificationPopup {
 // ============================================================================
 
 .systray-btn-wrapper {
-  position: relative;
-
+  // Note: CSS positioning not supported in GTK4 - badge positioning handled in code
   .badge {
-    position: absolute;
-    top: 2px;
-    right: 0px;
     background: $purple-primary;
     color: #ffffff;
     border-radius: 8px;
@@ -1859,7 +1849,6 @@ window.WeatherPopup {
       padding: 4px;
       background: rgba(0, 0, 0, 0.2);
       border-radius: 10px;
-      max-height: 140px;
     }
 
     .search-result {

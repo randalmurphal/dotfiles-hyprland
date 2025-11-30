@@ -248,6 +248,22 @@ const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
 - **Use helpers from `lib/ui-components.ts`** - clearContainer, triggerWindowResize, addEscapeHandler
 - **Use `lib/weather-codes.ts`** - Single source of truth for WMO code mapping
 
+## GTK4 CSS Limitations
+
+GTK4's CSS subset differs from web CSS. Avoid these unsupported properties:
+
+| Unsupported | Alternative |
+|-------------|-------------|
+| `overflow` | Not needed - GTK handles clipping |
+| `position`, `top`, `right`, `left`, `bottom` | Use GTK box packing/layout |
+| `max-width`, `max-height` | Set in widget props or use `min-*` |
+| `text-align`, `justify-content` | Use `halign`/`valign` widget props |
+| `margin: auto` | Use `halign: center` or `hexpand` |
+| `border-radius: 50%` | Use large pixel value (`999px`) |
+| `hexpand`, `vexpand` in CSS | These are widget properties, not CSS |
+
+**SCSS:** Use `@use "sass:color"` with `color.adjust()` instead of deprecated `lighten()`/`darken()`.
+
 ## Testing Changes
 
 1. Make edits to source files
