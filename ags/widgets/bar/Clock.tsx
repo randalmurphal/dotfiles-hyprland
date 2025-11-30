@@ -20,6 +20,7 @@ export default function Clock() {
     >
       <box>
         <label cssClasses={["time"]} label={time} />
+        <label cssClasses={["divider"]} label="|" />
         <label cssClasses={["date"]} label={date} />
       </box>
     </button>

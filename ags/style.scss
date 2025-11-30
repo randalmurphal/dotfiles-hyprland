@@ -86,7 +86,7 @@ window.Bar {
       }
 
       &.occupied {
-        color: $purple-secondary;
+        color: $purple-primary;
         background: rgba(157, 78, 221, 0.1);
       }
     }
@@ -134,10 +134,15 @@ window.Bar {
       color: $text-primary;
     }
 
+    .divider {
+      font-size: 14px;
+      color: $text-dim;
+      margin: 0 8px;
+    }
+
     .date {
       font-size: 14px;
-      color: $purple-secondary;
-      margin-left: 12px;
+      color: $purple-primary;
     }
   }
 
@@ -152,7 +157,7 @@ window.Bar {
       background: transparent;
 
       .icon {
-        color: $purple-primary;
+        color: $text-primary;
         font-size: 17px;
       }
 
@@ -575,7 +580,7 @@ window.BrightnessPopup {
         background: $purple-primary;
 
         &:hover {
-          background: #b565e8;
+          background: lighten($purple-primary, 10%);
         }
       }
     }
@@ -628,7 +633,7 @@ window.BrightnessPopup {
         border-color: $purple-primary;
 
         &:hover {
-          background: linear-gradient(135deg, #8e32d9, #af5fee);
+          background: linear-gradient(135deg, $purple-secondary, lighten($purple-primary, 10%));
         }
       }
     }
@@ -644,7 +649,7 @@ window.BrightnessPopup {
 
     &:hover {
       background: rgba($purple-primary, 0.2);
-      color: #b565e8;
+      color: lighten($purple-primary, 10%);
     }
 
     label {
@@ -685,7 +690,7 @@ window.BrightnessPopup {
         border-color: $purple-primary;
 
         &:hover {
-          background: linear-gradient(135deg, #8e32d9, #af5fee);
+          background: linear-gradient(135deg, $purple-secondary, lighten($purple-primary, 10%));
         }
       }
     }
@@ -1737,13 +1742,13 @@ window.NotificationOSD {
 // ============================================================================
 
 .weather {
-  margin-left: 4px;
+  margin-left: 2px;
   padding: 0 4px;
 
   .weather-icon {
     font-size: 16px;
     color: $purple-primary;
-    margin-right: 6px;
+    margin-right: 8px;
   }
 
   .weather-temp {
@@ -1775,6 +1780,21 @@ window.WeatherPopup {
     margin-bottom: 12px;
     padding-bottom: 10px;
     border-bottom: 1px solid $border-subtle;
+
+    .star-btn {
+      @include smooth-button;
+      background: transparent;
+      color: $text-dim;
+      border-radius: 6px;
+      min-width: 24px;
+      min-height: 24px;
+      font-size: 16px;
+      margin-right: 4px;
+
+      &:hover {
+        color: #ffd700;
+      }
+    }
 
     .popup-title {
       font-size: 14px;
@@ -1808,18 +1828,29 @@ window.WeatherPopup {
   .search-section {
     margin-bottom: 8px;
 
-    .search-entry {
+    .search-box {
       background: $bg-elevated;
       border: 1px solid $border-subtle;
       border-radius: 14px;
-      padding: 4px 12px;
+      padding: 3px 10px;
+
+      &:focus-within {
+        border-color: $purple-primary;
+      }
+
+      .search-icon {
+        font-size: 11px;
+        color: $text-dim;
+      }
+    }
+
+    .search-entry {
+      background: transparent;
+      border: none;
+      padding: 0;
       color: $text-primary;
       font-size: 11px;
       min-height: 0;
-
-      &:focus {
-        border-color: $purple-primary;
-      }
     }
 
     .search-results {
@@ -1858,12 +1889,12 @@ window.WeatherPopup {
     margin-bottom: 14px;
 
     .weather-main {
-      margin-bottom: 12px;
+      margin-bottom: 6px;
 
       .current-icon {
         font-size: 48px;
         color: $purple-primary;
-        margin-right: 12px;
+        margin-right: 8px;
       }
 
       .current-temp {

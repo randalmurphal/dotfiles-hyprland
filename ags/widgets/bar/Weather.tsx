@@ -93,7 +93,7 @@ export default function Weather() {
         />
         <label
           cssClasses={["weather-temp"]}
-          label={weather((w) => w ? `${w.temp}°` : "--°")}
+          label={weather((w) => w ? `${w.temp}°F` : "--°")}
         />
       </box>
     </button>

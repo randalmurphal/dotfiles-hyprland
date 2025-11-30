@@ -257,10 +257,57 @@ function searchLocation(query: string): Array<{ name: string; lat: number; lon: 
   return []
 }
 
+// Fetch full location name with zip via Nominatim reverse geocoding
+function getFullLocationName(lat: number, lon: number): string {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+    const [ok, stdout] = GLib.spawn_command_line_sync(`curl -s -A "AGS-Weather" "${url}"`)
+
+    if (ok && stdout) {
+      const text = new TextDecoder().decode(stdout)
+      const data = JSON.parse(text)
+
+      if (data.address) {
+        const city = data.address.city || data.address.town || data.address.village || data.name || "Unknown"
+        const state = data.address.state || ""
+        const zip = data.address.postcode || ""
+
+        let location = city
+        if (state) location += `, ${state}`
+        if (zip) location += ` ${zip}`
+        return location
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return ""
+}
+
 // Track selected location for searched locations
 let selectedLocation: { lat: number; lon: number } | null = null
+// Track if the currently displayed location is the saved default
+let isDefaultLocation = true
 
 const CONFIG_FILE = `${GLib.get_user_config_dir()}/ags/weather.conf`
+
+// Read saved default location from config
+function getSavedLocation(): { lat: number; lon: number } | null {
+  try {
+    const [ok, contents] = GLib.file_get_contents(CONFIG_FILE)
+    if (ok && contents) {
+      const text = new TextDecoder().decode(contents)
+      const latMatch = text.match(/LAT=([\d.-]+)/)
+      const lonMatch = text.match(/LON=([\d.-]+)/)
+      if (latMatch && lonMatch) {
+        return { lat: parseFloat(latMatch[1]), lon: parseFloat(lonMatch[1]) }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
 
 // Save location to config file (persists for systemd service)
 function saveLocationToConfig(lat: number, lon: number): void {
@@ -269,6 +316,15 @@ function saveLocationToConfig(lat: number, lon: number): void {
     GLib.file_set_contents(CONFIG_FILE, content)
     // Trigger systemd service to update cache with new location
     GLib.spawn_command_line_async("systemctl --user start ags-weather.service")
+  } catch {
+    // ignore
+  }
+}
+
+// Clear default location (remove config file)
+function clearDefaultLocation(): void {
+  try {
+    GLib.unlink(CONFIG_FILE)
   } catch {
     // ignore
   }
@@ -283,6 +339,8 @@ export default function WeatherPopup() {
   let winRef: Astal.Window | null = null
   let titleLabel: Gtk.Label
   let subtitleLabel: Gtk.Label
+  let starBtn: Gtk.Button
+  let starIcon: Gtk.Label
   let searchEntry: Gtk.Entry
   let resultsBox: Gtk.Box
   let currentWeatherBox: Gtk.Box
@@ -299,8 +357,10 @@ export default function WeatherPopup() {
 
     // Update title and subtitle
     titleLabel.label = customLocationName
-    subtitleLabel.label = "Current Location"
-    subtitleLabel.visible = isUsingCurrentLocation
+    subtitleLabel.label = "Default Location"
+    subtitleLabel.visible = isDefaultLocation
+    // Update star icon (filled if default, empty if not)
+    starIcon.label = isDefaultLocation ? "★" : "☆"
 
     // Clear current weather box
     let child = currentWeatherBox.get_first_child()
@@ -311,7 +371,7 @@ export default function WeatherPopup() {
     }
 
     // Build current weather
-    const weatherMain = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 12 })
+    const weatherMain = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 })
     weatherMain.add_css_class("weather-main")
 
     const iconLabel = new Gtk.Label({ label: weatherData.icon })
@@ -468,27 +528,22 @@ export default function WeatherPopup() {
       btn.set_child(box)
 
       btn.connect("clicked", () => {
-        // Save to config and trigger cache update
-        saveLocationToConfig(result.lat, result.lon)
         selectedLocation = { lat: result.lat, lon: result.lon }
-        customLocationName = result.name  // Show search name immediately
-        isUsingCurrentLocation = true
+        // Get full location name with zip immediately via Nominatim
+        const fullName = getFullLocationName(result.lat, result.lon)
+        customLocationName = fullName || result.name
+        isUsingCurrentLocation = false
+        // Check if this matches the saved default location
+        const saved = getSavedLocation()
+        isDefaultLocation = saved !== null &&
+          Math.abs(saved.lat - result.lat) < 0.001 &&
+          Math.abs(saved.lon - result.lon) < 0.001
         searchResults = []
         updateSearchResults()
         searchEntry.text = ""
-        // Fetch immediately while cache updates in background
+        // Fetch weather data
         weatherData = fetchWeatherForLocation(result.lat, result.lon)
         updateWeatherDisplay()
-        // After cache updates (2s), re-read to get full name with zip
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
-          const cached = readWeatherFromCache()
-          if (cached.location && cached.location !== "Unknown") {
-            customLocationName = cached.location
-            weatherData = cached.details
-            updateWeatherDisplay()
-          }
-          return GLib.SOURCE_REMOVE
-        })
       })
 
       resultsBox.append(btn)
@@ -538,13 +593,31 @@ export default function WeatherPopup() {
   const header = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL })
   header.add_css_class("weather-header")
 
-  // Title box with location name and "Current Location" subtitle
+  // Star button to toggle default location
+  starBtn = new Gtk.Button()
+  starBtn.add_css_class("star-btn")
+  starIcon = new Gtk.Label({ label: isDefaultLocation ? "★" : "☆" })
+  starBtn.set_child(starIcon)
+  starBtn.connect("clicked", () => {
+    if (isDefaultLocation) {
+      // Unset as default
+      clearDefaultLocation()
+      isDefaultLocation = false
+    } else if (selectedLocation) {
+      // Set current location as default
+      saveLocationToConfig(selectedLocation.lat, selectedLocation.lon)
+      isDefaultLocation = true
+    }
+    updateWeatherDisplay()
+  })
+
+  // Title box with location name and "Default Location" subtitle
   const titleBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, hexpand: true, halign: Gtk.Align.START })
 
-  titleLabel = new Gtk.Label({ label: customLocationName, halign: Gtk.Align.START, wrap: true })
+  titleLabel = new Gtk.Label({ label: customLocationName, halign: Gtk.Align.START })
   titleLabel.add_css_class("popup-title")
 
-  subtitleLabel = new Gtk.Label({ label: "Current Location", halign: Gtk.Align.START, visible: isUsingCurrentLocation })
+  subtitleLabel = new Gtk.Label({ label: "Default Location", halign: Gtk.Align.START, visible: isDefaultLocation })
   subtitleLabel.add_css_class("location-subtitle")
 
   titleBox.append(titleLabel)
@@ -556,6 +629,9 @@ export default function WeatherPopup() {
       const cached = readWeatherFromCache()
       weatherData = cached.details
       customLocationName = cached.location
+      // Check if this is the default location
+      isDefaultLocation = true
+      selectedLocation = getSavedLocation()
     } else if (selectedLocation) {
       weatherData = fetchWeatherForLocation(selectedLocation.lat, selectedLocation.lon)
     }
@@ -570,6 +646,7 @@ export default function WeatherPopup() {
     loadWeather()
   })
 
+  header.append(starBtn)
   header.append(titleBox)
   header.append(refreshBtn)
 
@@ -577,14 +654,24 @@ export default function WeatherPopup() {
   const searchSection = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
   searchSection.add_css_class("search-section")
 
+  // Search box with magnifying glass icon
+  const searchBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 })
+  searchBox.add_css_class("search-box")
+
+  const searchIcon = new Gtk.Label({ label: "" })
+  searchIcon.add_css_class("search-icon")
+
   searchEntry = new Gtk.Entry({ hexpand: true, placeholderText: "Search location..." })
   searchEntry.add_css_class("search-entry")
   searchEntry.connect("changed", onSearchChanged)
 
+  searchBox.append(searchIcon)
+  searchBox.append(searchEntry)
+
   resultsBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, visible: false })
   resultsBox.add_css_class("search-results")
 
-  searchSection.append(searchEntry)
+  searchSection.append(searchBox)
   searchSection.append(resultsBox)
 
   // Current weather

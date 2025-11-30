@@ -37,9 +37,9 @@ ags toggle launcher
 
 | Variable | Hex | Usage |
 |----------|-----|-------|
-| `$purple-primary` | `#9d4edd` | Primary accent, borders, highlights |
-| `$purple-secondary` | `#7b2cbf` | Secondary accent, hover states |
-| `$purple-dark` | `#5a189a` | Deep accent |
+| `$purple-primary` | `#9d4edd` | Primary accent - use for ALL purple text/icons for consistency |
+| `$purple-secondary` | `#7b2cbf` | Hover/press states only (darker feedback) |
+| `$purple-dim` | `#5a189a` | Deep accent, borders |
 | `$bg-darker` | `#0d0d0d` | Darkest background |
 | `$bg-dark` | `#121218` | Primary background |
 | `$bg-medium` | `#1a1a2e` | Secondary background |
@@ -231,6 +231,7 @@ const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
 - [x] Power menu widget
 - [x] Calendar popup for clock
 - [x] Media controls in audio popup (with playerctl ignore for wallpaper players)
+- [x] Weather popup with forecasts, location search, and default location star
 
 ## Coding Style
 
@@ -256,3 +257,6 @@ const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
 - `bluetoothctl` for Bluetooth
 - `playerctl` for media controls (uses `-i` flag to ignore wallpaper players like mpv)
 - Nerd Fonts for icons (Symbols Nerd Font)
+- `jq` and `curl` for weather fetching script
+- Weather data: `~/.local/bin/ags-weather-fetch` (run via systemd timer) writes to `~/.cache/ags-weather.json`
+- Weather config: `~/.config/ags/weather.conf` (LAT/LON variables) - defaults to Austin, TX
