@@ -76,10 +76,15 @@ ags toggle launcher
 ├── launcher.tsx            # Spotlight-style app launcher
 ├── style.scss              # All styles (SCSS with variables)
 ├── lib/                    # Shared utilities
-│   ├── constants.ts        # Workspace mapping, icons, location
-│   ├── system-commands.ts  # GLib wrappers (spawn, file ops)
+│   ├── constants.ts        # Workspace mapping, icons, POPUP_NAMES
+│   ├── constants/          # Centralized magic numbers
+│   │   ├── polling.ts      # All polling intervals (SYSTEM_MONITOR_POLL_MS, etc.)
+│   │   └── ui.ts           # UI constants (popup widths, max chars)
+│   ├── weather-codes.ts    # WMO weather code mapping (shared by bar + popup)
+│   ├── logger.ts           # Centralized error/debug logging
+│   ├── system-commands.ts  # GLib wrappers (spawn, file ops, readFileSync)
 │   ├── popup-manager.ts    # Popup state management
-│   └── ui-components.ts    # Reusable UI (toggle buttons, escape handlers)
+│   └── ui-components.ts    # Reusable UI (toggle buttons, escape handlers, clearContainer)
 ├── widgets/
 │   ├── bar/                # Status bar components
 │   │   ├── index.tsx       # Bar window composition
@@ -99,7 +104,7 @@ ags toggle launcher
 │       ├── backdrop.tsx    # Click-outside-to-close layer (non-ags namespace to avoid blur)
 │       ├── audio/AudioPopup.tsx  # Volume, device selection, media controls
 │       ├── media/
-│       │   └── media-utils.ts    # playerctl wrapper with ignored players filter
+│       │   └── media-utils.ts    # playerctl wrapper (MediaPopup.tsx removed - in AudioPopup now)
 │       ├── brightness/
 │       │   ├── BrightnessPopup.tsx
 │       │   └── night-light.ts  # Sunrise/sunset calculation
@@ -157,18 +162,15 @@ function debouncedFn() {
 ```
 
 ### Dynamic Window Resize (Layer Shell)
-Layer shell windows don't auto-shrink when content is hidden. Use `set_default_size(-1, -1)` to force recalculation:
+Layer shell windows don't auto-shrink when content is hidden. Use the shared helper:
 ```typescript
-// Store window reference
-let winRef: Astal.Window | null = null
+import { triggerWindowResize } from "../../lib/ui-components"
 
-function triggerWindowResize() {
-  if (winRef) winRef.set_default_size(-1, -1)
-}
+let winRef: Astal.Window | null = null
 
 // Call after visibility changes (e.g., dropdown toggle)
 optionsBox.visible = !optionsBox.visible
-triggerWindowResize()
+triggerWindowResize(winRef)
 ```
 
 ## Hyprland Integration
@@ -241,6 +243,10 @@ const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
 - CSS classes over inline styles
 - Keep popup logic self-contained
 - Use GLib for timers, not setTimeout (GJS limitation)
+- **Use constants from `lib/constants/`** - No hardcoded polling intervals or magic numbers
+- **Use `logError()` from `lib/logger.ts`** - No silent catch blocks
+- **Use helpers from `lib/ui-components.ts`** - clearContainer, triggerWindowResize, addEscapeHandler
+- **Use `lib/weather-codes.ts`** - Single source of truth for WMO code mapping
 
 ## Testing Changes
 

@@ -1,5 +1,8 @@
 import GLib from "gi://GLib"
 import { createPoll } from "ags/time"
+import { SYSTEM_MONITOR_POLL_MS } from "../../lib/constants/polling"
+import { logError } from "../../lib/logger"
+import { spawnSyncOutput } from "../../lib/system-commands"
 
 interface SystemStats {
   cpuPercent: number
@@ -36,8 +39,8 @@ function getSystemStats(): SystemStats {
       const busy = total - idle
       stats.cpuPercent = Math.round((busy / total) * 100)
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("SystemMonitor:CPU", e)
   }
 
   // RAM from /proc/meminfo
@@ -60,8 +63,8 @@ function getSystemStats(): SystemStats {
         stats.ramUsedGb = Math.round((totalKb - availableKb) / 1024 / 1024 * 10) / 10
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("SystemMonitor:RAM", e)
   }
 
   // CPU temp from /sys/class/hwmon
@@ -84,18 +87,18 @@ function getSystemStats(): SystemStats {
         // try next path
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("SystemMonitor:CPUTemp", e)
   }
 
   // NVIDIA GPU stats via nvidia-smi
   try {
-    const [ok, stdout] = GLib.spawn_command_line_sync(
-      "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
+    const result = spawnSyncOutput(
+      "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits",
+      "SystemMonitor:nvidia-smi"
     )
-    if (ok && stdout) {
-      const text = new TextDecoder().decode(stdout).trim()
-      const parts = text.split(",").map((s) => s.trim())
+    if (result.ok) {
+      const parts = result.output.split(",").map((s) => s.trim())
       if (parts.length >= 4) {
         stats.gpuPercent = parseInt(parts[0]) || 0
         const vramUsedMb = parseInt(parts[1]) || 0
@@ -105,8 +108,8 @@ function getSystemStats(): SystemStats {
         stats.gpuTemp = parseInt(parts[3]) || 0
       }
     }
-  } catch {
-    // ignore - nvidia-smi might not be available
+  } catch (e) {
+    logError("SystemMonitor:GPU", e)
   }
 
   return stats
@@ -115,7 +118,7 @@ function getSystemStats(): SystemStats {
 export default function SystemMonitor() {
   const stats = createPoll<SystemStats>(
     { cpuPercent: 0, cpuTemp: 0, ramUsedGb: 0, ramTotalGb: 0, gpuPercent: 0, gpuTemp: 0, vramUsedGb: 0, vramTotalGb: 0 },
-    2000,
+    SYSTEM_MONITOR_POLL_MS,
     getSystemStats
   )
 

@@ -6,8 +6,6 @@ import { closeAllPopups } from "./popup-manager"
 /**
  * Adds an Escape key handler to a window that closes all popups.
  * Used by popup windows to allow quick dismissal.
- *
- * @param window - The Astal.Window to add the escape handler to
  */
 export function addEscapeHandler(window: Astal.Window): void {
   const keyController = new Gtk.EventControllerKey()
@@ -19,6 +17,28 @@ export function addEscapeHandler(window: Astal.Window): void {
     return false
   })
   window.add_controller(keyController)
+}
+
+/**
+ * Removes all children from a GTK Box container.
+ * Used by popups that rebuild their content dynamically.
+ */
+export function clearContainer(container: Gtk.Box): void {
+  let child = container.get_first_child()
+  while (child) {
+    const next = child.get_next_sibling()
+    container.remove(child)
+    child = next
+  }
+}
+
+/**
+ * Forces a layer-shell window to recalculate its size.
+ * Layer shell windows don't auto-shrink when content is hidden.
+ * Call this after visibility changes (e.g., dropdown toggle).
+ */
+export function triggerWindowResize(window: Astal.Window | null): void {
+  if (window) window.set_default_size(-1, -1)
 }
 
 /**

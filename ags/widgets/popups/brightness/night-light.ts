@@ -1,6 +1,7 @@
 import GLib from "gi://GLib"
 import { LATITUDE, LONGITUDE } from "../../../lib/constants"
 import { spawnAsync, fileExists, getHomeDir } from "../../../lib/system-commands"
+import { logDebug } from "../../../lib/logger"
 
 // State variables
 export let currentBrightnessValue = 100
@@ -120,7 +121,7 @@ export function setupAutoNightLight(): void {
       const shouldBeOn = isNightTime()
       if (shouldBeOn !== nightLightState) {
         applyNightLight(shouldBeOn)
-        print(`Auto night light: ${shouldBeOn ? "enabled" : "disabled"}`)
+        logDebug("NightLight", `Auto night light: ${shouldBeOn ? "enabled" : "disabled"}`)
       }
     }
     return GLib.SOURCE_CONTINUE

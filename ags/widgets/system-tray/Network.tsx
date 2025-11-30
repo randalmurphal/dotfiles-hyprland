@@ -2,6 +2,11 @@ import GLib from "gi://GLib"
 import { createPoll } from "ags/time"
 import { togglePopup } from "../../lib/popup-manager"
 import { getWifiSignalIcon } from "../../lib/constants"
+import { NETWORK_POLL_MS } from "../../lib/constants/polling"
+
+// NOTE: This component is intentionally NOT included in the system tray.
+// User preference to not show WiFi status in bar.
+// Keeping this file for potential future use.
 
 // Check if WiFi is enabled
 function isWifiEnabled(): boolean {
@@ -26,8 +31,8 @@ function getCurrentWifiConnection(): string {
 }
 
 export default function Network() {
-  // Poll wifi status every 2 seconds
-  const wifiStatus = createPoll({ enabled: false, connected: false, signal: 0 }, 2000, () => {
+  // Poll wifi status
+  const wifiStatus = createPoll({ enabled: false, connected: false, signal: 0 }, NETWORK_POLL_MS, () => {
     const enabled = isWifiEnabled()
     let connected = false
     let signal = 0

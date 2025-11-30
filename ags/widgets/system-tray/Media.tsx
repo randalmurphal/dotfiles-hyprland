@@ -2,12 +2,17 @@ import GLib from "gi://GLib"
 import { createPoll } from "ags/time"
 import { togglePopup } from "../../lib/popup-manager"
 import { getMediaInfo, hasActivePlayer } from "../popups/media/media-utils"
+import { MEDIA_POLL_MS } from "../../lib/constants/polling"
+
+// NOTE: This component is intentionally NOT included in the system tray.
+// Media controls are integrated into AudioPopup instead.
+// Keeping this file for potential future standalone use.
 
 export default function Media() {
-  // Poll media status every 2 seconds
+  // Poll media status
   const mediaStatus = createPoll(
     { status: "Stopped" as const, title: "" },
-    2000,
+    MEDIA_POLL_MS,
     () => {
       const info = getMediaInfo()
       return { status: info.status, title: info.title }

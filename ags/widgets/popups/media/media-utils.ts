@@ -1,4 +1,5 @@
 import GLib from "gi://GLib"
+import { logError } from "../../../lib/logger"
 
 export interface MediaInfo {
   title: string
@@ -18,7 +19,7 @@ function safeSpawnSync(command: string): string {
       return new TextDecoder().decode(stdout).trim()
     }
   } catch (e) {
-    print(`[MediaUtils] playerctl error: ${e}`)
+    logError("MediaUtils", e)
   }
   return ""
 }

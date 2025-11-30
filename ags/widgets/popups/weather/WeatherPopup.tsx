@@ -3,8 +3,13 @@ import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
 import Astal from "gi://Astal?version=4.0"
 import { closeAllPopups } from "../../../lib/popup-manager"
+import { getWeatherInfo } from "../../../lib/weather-codes"
+import { getCacheDir, getConfigDir, readFileSync } from "../../../lib/system-commands"
+import { SEARCH_DEBOUNCE_MS } from "../../../lib/constants/polling"
+import { HOURLY_FORECAST_COUNT, ESCAPE_KEYVAL } from "../../../lib/constants/ui"
+import { logError } from "../../../lib/logger"
 
-const CACHE_FILE = `${GLib.get_user_cache_dir()}/ags-weather.json`
+const CACHE_FILE = `${getCacheDir()}/ags-weather.json`
 
 interface HourlyForecast {
   time: string
@@ -31,42 +36,6 @@ interface WeatherDetails {
   icon: string
   hourly: HourlyForecast[]
   forecast: ForecastDay[]
-}
-
-// WMO Weather codes to icons
-const weatherCodes: Record<number, { icon: string; desc: string }> = {
-  0: { icon: "󰖙", desc: "Clear" },
-  1: { icon: "󰖙", desc: "Mainly clear" },
-  2: { icon: "󰖐", desc: "Partly cloudy" },
-  3: { icon: "󰖐", desc: "Overcast" },
-  45: { icon: "󰖑", desc: "Foggy" },
-  48: { icon: "󰖑", desc: "Icy fog" },
-  51: { icon: "󰖗", desc: "Light drizzle" },
-  53: { icon: "󰖗", desc: "Drizzle" },
-  55: { icon: "󰖗", desc: "Heavy drizzle" },
-  56: { icon: "󰖘", desc: "Freezing drizzle" },
-  57: { icon: "󰖘", desc: "Heavy freezing drizzle" },
-  61: { icon: "󰖖", desc: "Light rain" },
-  63: { icon: "󰖖", desc: "Rain" },
-  65: { icon: "󰖖", desc: "Heavy rain" },
-  66: { icon: "󰖘", desc: "Freezing rain" },
-  67: { icon: "󰖘", desc: "Heavy freezing rain" },
-  71: { icon: "󰖘", desc: "Light snow" },
-  73: { icon: "󰖘", desc: "Snow" },
-  75: { icon: "󰖘", desc: "Heavy snow" },
-  77: { icon: "󰖘", desc: "Snow grains" },
-  80: { icon: "󰖖", desc: "Light showers" },
-  81: { icon: "󰖖", desc: "Showers" },
-  82: { icon: "󰖖", desc: "Heavy showers" },
-  85: { icon: "󰖘", desc: "Light snow showers" },
-  86: { icon: "󰖘", desc: "Snow showers" },
-  95: { icon: "󰖓", desc: "Thunderstorm" },
-  96: { icon: "󰖓", desc: "Thunderstorm with hail" },
-  99: { icon: "󰖓", desc: "Thunderstorm with heavy hail" },
-}
-
-function getWeatherInfo(code: number): { icon: string; desc: string } {
-  return weatherCodes[code] || { icon: "󰖐", desc: "Unknown" }
 }
 
 function getDayName(dateStr: string): string {
@@ -97,9 +66,9 @@ function formatHour(timeStr: string): string {
 // Read weather details from systemd-maintained cache (instant, no network)
 function readWeatherFromCache(): { details: WeatherDetails | null; location: string } {
   try {
-    const [ok, contents] = GLib.file_get_contents(CACHE_FILE)
-    if (ok && contents) {
-      const cache = JSON.parse(new TextDecoder().decode(contents))
+    const contents = readFileSync(CACHE_FILE, "WeatherPopup.readCache")
+    if (contents) {
+      const cache = JSON.parse(contents)
       if (cache.weather?.current && cache.weather?.daily) {
         const code = cache.weather.current.weather_code
         const info = getWeatherInfo(code)
@@ -110,7 +79,7 @@ function readWeatherFromCache(): { details: WeatherDetails | null; location: str
           const now = new Date()
           const currentHour = now.getHours()
           let count = 0
-          for (let i = 0; i < cache.weather.hourly.time.length && count < 5; i++) {
+          for (let i = 0; i < cache.weather.hourly.time.length && count < HOURLY_FORECAST_COUNT; i++) {
             const hourTime = new Date(cache.weather.hourly.time[i])
             if (hourTime >= now || (hourTime.getDate() === now.getDate() && hourTime.getHours() >= currentHour)) {
               const hourCode = cache.weather.hourly.weather_code[i]
@@ -156,8 +125,8 @@ function readWeatherFromCache(): { details: WeatherDetails | null; location: str
         }
       }
     }
-  } catch {
-    // Cache not ready
+  } catch (e) {
+    logError("WeatherPopup.readCache", e)
   }
   return { details: null, location: "Unknown" }
 }
@@ -183,7 +152,7 @@ function fetchWeatherForLocation(lat: number, lon: number): WeatherDetails | nul
           const now = new Date()
           const currentHour = now.getHours()
           let count = 0
-          for (let i = 0; i < data.hourly.time.length && count < 5; i++) {
+          for (let i = 0; i < data.hourly.time.length && count < HOURLY_FORECAST_COUNT; i++) {
             const hourTime = new Date(data.hourly.time[i])
             if (hourTime >= now || (hourTime.getDate() === now.getDate() && hourTime.getHours() >= currentHour)) {
               const hourCode = data.hourly.weather_code[i]
@@ -226,8 +195,8 @@ function fetchWeatherForLocation(lat: number, lon: number): WeatherDetails | nul
         }
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.fetchLocation", e)
   }
   return null
 }
@@ -251,8 +220,8 @@ function searchLocation(query: string): Array<{ name: string; lat: number; lon: 
         })
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.searchLocation", e)
   }
   return []
 }
@@ -278,8 +247,8 @@ function getFullLocationName(lat: number, lon: number): string {
         return location
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.getFullLocationName", e)
   }
   return ""
 }
@@ -289,22 +258,21 @@ let selectedLocation: { lat: number; lon: number } | null = null
 // Track if the currently displayed location is the saved default
 let isDefaultLocation = true
 
-const CONFIG_FILE = `${GLib.get_user_config_dir()}/ags/weather.conf`
+const CONFIG_FILE = `${getConfigDir()}/ags/weather.conf`
 
 // Read saved default location from config
 function getSavedLocation(): { lat: number; lon: number } | null {
   try {
-    const [ok, contents] = GLib.file_get_contents(CONFIG_FILE)
-    if (ok && contents) {
-      const text = new TextDecoder().decode(contents)
+    const text = readFileSync(CONFIG_FILE, "WeatherPopup.getSavedLocation")
+    if (text) {
       const latMatch = text.match(/LAT=([\d.-]+)/)
       const lonMatch = text.match(/LON=([\d.-]+)/)
       if (latMatch && lonMatch) {
         return { lat: parseFloat(latMatch[1]), lon: parseFloat(lonMatch[1]) }
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.getSavedLocation", e)
   }
   return null
 }
@@ -316,8 +284,8 @@ function saveLocationToConfig(lat: number, lon: number): void {
     GLib.file_set_contents(CONFIG_FILE, content)
     // Trigger systemd service to update cache with new location
     GLib.spawn_command_line_async("systemctl --user start ags-weather.service")
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.saveLocationToConfig", e)
   }
 }
 
@@ -325,8 +293,8 @@ function saveLocationToConfig(lat: number, lon: number): void {
 function clearDefaultLocation(): void {
   try {
     GLib.unlink(CONFIG_FILE)
-  } catch {
-    // ignore
+  } catch (e) {
+    logError("WeatherPopup.clearDefaultLocation", e)
   }
 }
 
@@ -564,7 +532,7 @@ export default function WeatherPopup() {
       return
     }
 
-    searchTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+    searchTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SEARCH_DEBOUNCE_MS, () => {
       searchResults = searchLocation(query)
       updateSearchResults()
       searchTimer = null
@@ -713,7 +681,7 @@ export default function WeatherPopup() {
   // Escape key handler
   const keyController = new Gtk.EventControllerKey()
   keyController.connect("key-pressed", (_: Gtk.EventControllerKey, keyval: number) => {
-    if (keyval === 65307) {
+    if (keyval === ESCAPE_KEYVAL) {
       closeAllPopups()
       return true
     }

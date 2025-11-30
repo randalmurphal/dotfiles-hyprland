@@ -2,10 +2,11 @@ import GLib from "gi://GLib"
 import { createPoll } from "ags/time"
 import { togglePopup } from "../../lib/popup-manager"
 import { isBluetoothPowered } from "../../widgets/popups/bluetooth/bluetooth-utils"
+import { BLUETOOTH_POLL_MS } from "../../lib/constants/polling"
 
 export default function Bluetooth() {
-  // Poll bluetooth status every 2 seconds
-  const btStatus = createPoll({ powered: false, connected: false }, 2000, () => {
+  // Poll bluetooth status
+  const btStatus = createPoll({ powered: false, connected: false }, BLUETOOTH_POLL_MS, () => {
     const powered = isBluetoothPowered()
     let connected = false
     if (powered) {

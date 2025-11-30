@@ -5,6 +5,9 @@ import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib"
 import AstalWp from "gi://AstalWp"
 import { closeAllPopups } from "../../../lib/popup-manager"
+import { clearContainer, triggerWindowResize } from "../../../lib/ui-components"
+import { POPUP_WIDTH_MEDIUM, DROPDOWN_MAX_CHARS } from "../../../lib/constants/ui"
+import { MEDIA_POLL_MS, DEVICE_CHANGE_DELAY_MS, PROFILE_CHANGE_DELAY_MS, MEDIA_ACTION_DELAY_MS } from "../../../lib/constants/polling"
 import { getMediaInfo, formatTime, getPlayerctlIgnoreFlags } from "../media/media-utils"
 
 // Enhanced Audio popup with dropdown device selection and media controls
@@ -28,11 +31,6 @@ export function AudioPopup() {
   // Window reference for dynamic resizing
   let winRef: Astal.Window | null = null
 
-  // Helper: Force window to recalculate size (needed for layer shell windows)
-  function triggerWindowResize() {
-    if (winRef) winRef.set_default_size(-1, -1)
-  }
-
   // Main content container
   const contentBox = new Gtk.Box({
     orientation: Gtk.Orientation.VERTICAL,
@@ -40,7 +38,7 @@ export function AudioPopup() {
     hexpand: false,
   })
   contentBox.add_css_class("audio-popup-content")
-  contentBox.set_size_request(255, -1)  // Fixed width (~1.7x of 150)
+  contentBox.set_size_request(POPUP_WIDTH_MEDIUM, -1)  // Fixed width (~1.7x of 150)
 
   // Header
   const header = new Gtk.Box({ spacing: 8 })
@@ -112,16 +110,6 @@ export function AudioPopup() {
   })
   controlsSection.append(settingsBtn)
   contentBox.append(controlsSection)
-
-  // Helper to clear a container
-  function clearContainer(container: Gtk.Box) {
-    let child = container.get_first_child()
-    while (child) {
-      const next = child.get_next_sibling()
-      container.remove(child)
-      child = next
-    }
-  }
 
   // Build volume controls (slider only - mute is separate)
   function buildVolumeSection(speaker: AstalWp.Endpoint) {
@@ -213,7 +201,7 @@ export function AudioPopup() {
     const titleLabel = new Gtk.Label({ label: "Output", xalign: 0 })
     titleLabel.add_css_class("dropdown-title")
     labelBox.append(titleLabel)
-    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: 34 })
+    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: DROPDOWN_MAX_CHARS })
     valueLabel.add_css_class("dropdown-value")
     labelBox.append(valueLabel)
     headerContent.append(labelBox)
@@ -246,7 +234,7 @@ export function AudioPopup() {
         xalign: 0,
         hexpand: true,
         ellipsize: 3,
-        maxWidthChars: 34,
+        maxWidthChars: DROPDOWN_MAX_CHARS,
       })
       optionRow.append(optionName)
 
@@ -260,7 +248,7 @@ export function AudioPopup() {
       optionBtn.connect("clicked", () => {
         speaker.set_is_default(true)
         outputExpanded = false
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEVICE_CHANGE_DELAY_MS, () => {
           const newSpeaker = audio.get_default_speaker()
           if (newSpeaker) {
             buildVolumeSection(newSpeaker)
@@ -287,7 +275,7 @@ export function AudioPopup() {
         buildProfileDropdown()
         buildInputDropdown()
       }
-      triggerWindowResize()
+      triggerWindowResize(winRef)
     })
   }
 
@@ -321,7 +309,7 @@ export function AudioPopup() {
     const titleLabel = new Gtk.Label({ label: "Profile", xalign: 0 })
     titleLabel.add_css_class("dropdown-title")
     labelBox.append(titleLabel)
-    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: 34 })
+    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: DROPDOWN_MAX_CHARS })
     valueLabel.add_css_class("dropdown-value")
     labelBox.append(valueLabel)
     headerContent.append(labelBox)
@@ -356,7 +344,7 @@ export function AudioPopup() {
         xalign: 0,
         hexpand: true,
         ellipsize: 3,
-        maxWidthChars: 34,
+        maxWidthChars: DROPDOWN_MAX_CHARS,
       })
       optionRow.append(optionName)
 
@@ -370,7 +358,7 @@ export function AudioPopup() {
       optionBtn.connect("clicked", () => {
         device.set_active_profile_id(profile.index)
         profileExpanded = false
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, PROFILE_CHANGE_DELAY_MS, () => {
           buildProfileDropdown()
           return GLib.SOURCE_REMOVE
         })
@@ -390,7 +378,7 @@ export function AudioPopup() {
         buildOutputDropdown()
         buildInputDropdown()
       }
-      triggerWindowResize()
+      triggerWindowResize(winRef)
     })
   }
 
@@ -417,7 +405,7 @@ export function AudioPopup() {
     const titleLabel = new Gtk.Label({ label: "Input", xalign: 0 })
     titleLabel.add_css_class("dropdown-title")
     labelBox.append(titleLabel)
-    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: 34 })
+    const valueLabel = new Gtk.Label({ label: currentName, xalign: 0, ellipsize: 3, maxWidthChars: DROPDOWN_MAX_CHARS })
     valueLabel.add_css_class("dropdown-value")
     labelBox.append(valueLabel)
     headerContent.append(labelBox)
@@ -450,7 +438,7 @@ export function AudioPopup() {
         xalign: 0,
         hexpand: true,
         ellipsize: 3,
-        maxWidthChars: 34,
+        maxWidthChars: DROPDOWN_MAX_CHARS,
       })
       optionRow.append(optionName)
 
@@ -464,7 +452,7 @@ export function AudioPopup() {
       optionBtn.connect("clicked", () => {
         mic.set_is_default(true)
         inputExpanded = false
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEVICE_CHANGE_DELAY_MS, () => {
           buildInputDropdown()
           return GLib.SOURCE_REMOVE
         })
@@ -484,7 +472,7 @@ export function AudioPopup() {
         buildOutputDropdown()
         buildProfileDropdown()
       }
-      triggerWindowResize()
+      triggerWindowResize(winRef)
     })
   }
 
@@ -524,7 +512,7 @@ export function AudioPopup() {
         xalign: 0,
         ellipsize: 3,
         hexpand: true,
-        maxWidthChars: 34,
+        maxWidthChars: DROPDOWN_MAX_CHARS,
       })
       title.add_css_class("track-title")
       trackInfo.append(title)
@@ -534,7 +522,7 @@ export function AudioPopup() {
           label: mediaInfo.artist,
           xalign: 0,
           ellipsize: 3,
-          maxWidthChars: 34,
+          maxWidthChars: DROPDOWN_MAX_CHARS,
         })
         artist.add_css_class("track-artist")
         trackInfo.append(artist)
@@ -571,7 +559,7 @@ export function AudioPopup() {
       prevBtn.add_css_class("control-btn")
       prevBtn.connect("clicked", () => {
         GLib.spawn_command_line_async(`playerctl ${ignoreFlags} previous`)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, MEDIA_ACTION_DELAY_MS, () => {
           buildMediaSection()
           return GLib.SOURCE_REMOVE
         })
@@ -585,7 +573,7 @@ export function AudioPopup() {
       playPauseBtn.add_css_class("play-pause")
       playPauseBtn.connect("clicked", () => {
         GLib.spawn_command_line_async(`playerctl ${ignoreFlags} play-pause`)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, MEDIA_ACTION_DELAY_MS, () => {
           buildMediaSection()
           return GLib.SOURCE_REMOVE
         })
@@ -596,7 +584,7 @@ export function AudioPopup() {
       nextBtn.add_css_class("control-btn")
       nextBtn.connect("clicked", () => {
         GLib.spawn_command_line_async(`playerctl ${ignoreFlags} next`)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, MEDIA_ACTION_DELAY_MS, () => {
           buildMediaSection()
           return GLib.SOURCE_REMOVE
         })
@@ -611,7 +599,7 @@ export function AudioPopup() {
 
   function startMediaPolling() {
     if (mediaPollingId) return
-    mediaPollingId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+    mediaPollingId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MEDIA_POLL_MS, () => {
       buildMediaSection()
       return GLib.SOURCE_CONTINUE
     })

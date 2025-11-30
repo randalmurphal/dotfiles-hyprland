@@ -16,7 +16,6 @@ import { WifiPopup } from "./widgets/popups/network/WifiPopup"
 import BluetoothPopup from "./widgets/popups/bluetooth/BluetoothPopup"
 import { PowerPopup } from "./widgets/popups/power/PowerPopup"
 import { CalendarPopup } from "./widgets/popups/calendar/CalendarPopup"
-// MediaPopup removed - media controls now integrated into AudioPopup
 import { NotificationPopup } from "./widgets/popups/notifications/NotificationPopup"
 import { NotificationOSD } from "./widgets/popups/notifications/NotificationOSD"
 import WeatherPopup from "./widgets/popups/weather/WeatherPopup"
