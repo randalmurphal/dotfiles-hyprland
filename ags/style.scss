@@ -1601,6 +1601,124 @@ window.NotificationPopup {
 }
 
 // ============================================================================
+// CLIPBOARD POPUP - macOS-style
+// ============================================================================
+
+window.ClipboardPopup {
+  @include popup-base;
+
+  .clipboard-popup-content {
+    @include popup-content;
+    min-width: 340px;
+  }
+
+  .clipboard-popup-header {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid $border-subtle;
+
+    .popup-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: $text-primary;
+      letter-spacing: 0.3px;
+    }
+
+    .count-badge {
+      background: $purple-primary;
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 0 8px;
+    }
+
+    .clear-all-btn {
+      @include smooth-button;
+      background: $bg-elevated;
+      color: $text-secondary;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+
+      &:hover {
+        background: rgba($red-accent, 0.15);
+        color: $red-accent;
+      }
+    }
+  }
+
+  .clipboard-list {
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+
+    .clipboard-item {
+      padding: 8px 10px;
+      margin: 2px 0;
+      border-radius: 8px;
+      background: $bg-elevated;
+
+      &:hover {
+        background: $bg-hover;
+      }
+
+      .clipboard-icon {
+        font-size: 16px;
+        color: $purple-primary;
+        min-width: 24px;
+      }
+
+      .clipboard-preview {
+        @include smooth-button;
+        background: transparent;
+        padding: 4px 8px;
+        border-radius: 6px;
+
+        label {
+          font-size: 12px;
+          color: $text-secondary;
+        }
+
+        &:hover {
+          background: rgba($purple-primary, 0.1);
+
+          label {
+            color: $text-primary;
+          }
+        }
+      }
+
+      .clipboard-delete-btn {
+        @include smooth-button;
+        background: transparent;
+        color: $text-dim;
+        border-radius: 4px;
+        min-width: 24px;
+        min-height: 24px;
+        font-size: 14px;
+        padding: 0;
+        opacity: 0.6;
+
+        &:hover {
+          background: rgba($red-accent, 0.15);
+          color: $red-accent;
+          opacity: 1;
+        }
+      }
+    }
+
+    .empty-label {
+      font-size: 12px;
+      color: $text-dim;
+      padding: 40px 20px;
+    }
+  }
+}
+
+// ============================================================================
 // TRAY BUTTON BADGE (for notification count on systray)
 // ============================================================================
 

@@ -99,7 +99,8 @@ ags toggle launcher
 │   │   ├── Brightness.tsx  # Brightness button
 │   │   ├── Network.tsx     # WiFi status button
 │   │   ├── Bluetooth.tsx   # Bluetooth status button
-│   │   └── Caffeine.tsx    # Screen sleep toggle
+│   │   ├── Caffeine.tsx    # Screen sleep toggle
+│   │   └── Clipboard.tsx   # Clipboard history button
 │   └── popups/             # Popup windows
 │       ├── backdrop.tsx    # Click-outside-to-close layer (non-ags namespace to avoid blur)
 │       ├── audio/AudioPopup.tsx  # Volume, device selection, media controls
@@ -114,8 +115,10 @@ ags toggle launcher
 │       ├── bluetooth/
 │       │   ├── BluetoothPopup.tsx
 │       │   └── bluetooth-utils.ts
-│       └── weather/
-│           └── WeatherPopup.tsx  # Weather popup with forecast and location search
+│       ├── weather/
+│       │   └── WeatherPopup.tsx  # Weather popup with forecast and location search
+│       └── clipboard/
+│           └── ClipboardPopup.tsx  # Clipboard history popup (requires cliphist)
 ├── @girs/                  # Type definitions (gitignored)
 ├── screenshots/            # Reference screenshots
 └── CLAUDE.md               # This file
@@ -225,15 +228,13 @@ const WORKSPACE_MONITOR_MAP: Record<string, number[]> = {
 }
 ```
 
-## Future Work
+## Completed Features
 
-- [ ] Add window representation to bar (like macOS dock highlighting)
-- [ ] Notification center
-- [ ] VPN toggle in network popup
 - [x] Power menu widget
 - [x] Calendar popup for clock
 - [x] Media controls in audio popup (with playerctl ignore for wallpaper players)
 - [x] Weather popup with forecasts, location search, and default location star
+- [x] Clipboard history popup (using cliphist)
 
 ## Coding Style
 
@@ -278,6 +279,7 @@ GTK4's CSS subset differs from web CSS. Avoid these unsupported properties:
 - `nmcli` for WiFi management
 - `bluetoothctl` for Bluetooth
 - `playerctl` for media controls (uses `-i` flag to ignore wallpaper players like mpv)
+- `cliphist` + `wl-clipboard` for clipboard history
 - Nerd Fonts for icons (Symbols Nerd Font)
 - `jq` and `curl` for weather fetching script
 - Weather data: `~/.local/bin/ags-weather-fetch` (run via systemd timer) writes to `~/.cache/ags-weather.json`

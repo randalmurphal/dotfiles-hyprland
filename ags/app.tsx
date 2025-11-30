@@ -19,6 +19,7 @@ import { CalendarPopup } from "./widgets/popups/calendar/CalendarPopup"
 import { NotificationPopup } from "./widgets/popups/notifications/NotificationPopup"
 import { NotificationOSD } from "./widgets/popups/notifications/NotificationOSD"
 import WeatherPopup from "./widgets/popups/weather/WeatherPopup"
+import { ClipboardPopup } from "./widgets/popups/clipboard/ClipboardPopup"
 
 // Export toggleLauncher for hyprctl access
 ;(globalThis as any).toggleLauncher = toggleLauncher
@@ -49,6 +50,7 @@ app.start({
       <NotificationPopup />,
       <NotificationOSD />,
       <WeatherPopup />,
+      <ClipboardPopup />,
       Launcher(),
     ]
   },
