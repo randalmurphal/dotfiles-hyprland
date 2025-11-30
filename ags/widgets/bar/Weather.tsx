@@ -1,7 +1,6 @@
 import GLib from "gi://GLib"
 import { createPoll } from "ags/time"
 import { togglePopup } from "../../lib/popup-manager"
-import { LATITUDE, LONGITUDE } from "../../lib/constants"
 
 interface WeatherData {
   temp: number
@@ -47,53 +46,38 @@ function getWeatherInfo(code: number): { icon: string; desc: string } {
   return weatherCodes[code] || { icon: "󰖐", desc: "Unknown" }
 }
 
-function fetchWeather(lat: number, lon: number): WeatherData | null {
+const CACHE_FILE = `${GLib.get_user_cache_dir()}/ags-weather.json`
+
+// Read weather from systemd-maintained cache file (instant, no network)
+function readWeatherCache(): WeatherData | null {
   try {
-    // Get weather data
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`
-    const [ok, stdout] = GLib.spawn_command_line_sync(`curl -s "${weatherUrl}"`)
-
-    if (ok && stdout) {
-      const text = new TextDecoder().decode(stdout)
-      const data = JSON.parse(text)
-
-      if (data.current) {
-        const code = data.current.weather_code
+    const [ok, contents] = GLib.file_get_contents(CACHE_FILE)
+    if (ok && contents) {
+      const data = JSON.parse(new TextDecoder().decode(contents))
+      if (data.weather?.current) {
+        const code = data.weather.current.weather_code
         const info = getWeatherInfo(code)
-
-        // Get city name via reverse geocoding
-        let city = "Unknown"
-        try {
-          const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
-          const [geoOk, geoStdout] = GLib.spawn_command_line_sync(`curl -s -A "AGS-Weather" "${geoUrl}"`)
-          if (geoOk && geoStdout) {
-            const geoData = JSON.parse(new TextDecoder().decode(geoStdout))
-            city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.name || "Unknown"
-          }
-        } catch {
-          // ignore geocoding errors
-        }
-
         return {
-          temp: Math.round(data.current.temperature_2m),
+          temp: Math.round(data.weather.current.temperature_2m),
           code,
           description: info.desc,
           icon: info.icon,
-          city,
+          city: data.location || "Unknown",
         }
       }
     }
   } catch {
-    // ignore fetch errors
+    // Cache not ready yet
   }
   return null
 }
 
 export default function Weather() {
+  // Poll cache file every 30 seconds (instant read, systemd updates it every 10 min)
   const weather = createPoll<WeatherData | null>(
-    null,
-    600000, // 10 minutes
-    () => fetchWeather(LATITUDE, LONGITUDE)
+    readWeatherCache(),  // Initial read
+    30000,               // Re-read cache every 30s
+    readWeatherCache
   )
 
   return (

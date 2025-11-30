@@ -1783,6 +1783,12 @@ window.WeatherPopup {
       letter-spacing: 0.3px;
     }
 
+    .location-subtitle {
+      font-size: 10px;
+      color: $text-dim;
+      margin-top: 2px;
+    }
+
     .refresh-btn {
       @include smooth-button;
       background: $bg-elevated;
@@ -1800,15 +1806,16 @@ window.WeatherPopup {
   }
 
   .search-section {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
 
     .search-entry {
       background: $bg-elevated;
       border: 1px solid $border-subtle;
-      border-radius: 8px;
-      padding: 8px 12px;
+      border-radius: 14px;
+      padding: 4px 12px;
       color: $text-primary;
-      font-size: 12px;
+      font-size: 11px;
+      min-height: 0;
 
       &:focus {
         border-color: $purple-primary;
@@ -1819,14 +1826,14 @@ window.WeatherPopup {
       margin-top: 4px;
       padding: 4px;
       background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      max-height: 200px;
+      border-radius: 10px;
+      max-height: 140px;
     }
 
     .search-result {
       @include smooth-button;
-      padding: 8px 10px;
-      margin: 2px 0;
+      padding: 4px 8px;
+      margin: 1px 0;
       border-radius: 6px;
       background: transparent;
 
@@ -1835,9 +1842,9 @@ window.WeatherPopup {
       }
 
       .result-icon {
-        font-size: 14px;
+        font-size: 12px;
         color: $purple-primary;
-        margin-right: 8px;
+        margin-right: 6px;
       }
 
       .result-name {
@@ -1900,13 +1907,56 @@ window.WeatherPopup {
     }
   }
 
+  .hourly-section {
+    margin-bottom: 12px;
+
+    .section-title {
+      font-size: 10px;
+      color: $text-dim;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .hourly-list {
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+
+      .hourly-item {
+        padding: 6px 0;
+        min-width: 48px;
+
+        .hourly-time {
+          font-size: 10px;
+          color: $text-secondary;
+          font-weight: 500;
+          margin-bottom: 4px;
+        }
+
+        .hourly-icon {
+          font-size: 18px;
+          color: $purple-primary;
+          margin-bottom: 4px;
+        }
+
+        .hourly-temp {
+          font-size: 12px;
+          font-weight: 600;
+          color: $text-primary;
+        }
+      }
+    }
+  }
+
   .forecast-section {
     .section-title {
       font-size: 10px;
       color: $text-dim;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       font-weight: 600;
     }
 
@@ -1916,33 +1966,33 @@ window.WeatherPopup {
       border-radius: 10px;
 
       .forecast-day {
-        padding: 8px 0;
-        min-width: 52px;
+        padding: 6px 0;
+        min-width: 48px;
 
         .forecast-day-name {
-          font-size: 11px;
+          font-size: 10px;
           color: $text-secondary;
           font-weight: 500;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .forecast-icon {
-          font-size: 20px;
+          font-size: 18px;
           color: $purple-primary;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .forecast-temps {
           .forecast-high {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: $text-primary;
           }
 
           .forecast-low {
-            font-size: 11px;
+            font-size: 10px;
             color: $text-dim;
-            margin-left: 4px;
+            margin-left: 3px;
           }
         }
       }

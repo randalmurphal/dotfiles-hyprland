@@ -3,7 +3,15 @@ import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
 import Astal from "gi://Astal?version=4.0"
 import { closeAllPopups } from "../../../lib/popup-manager"
-import { LATITUDE, LONGITUDE } from "../../../lib/constants"
+
+const CACHE_FILE = `${GLib.get_user_cache_dir()}/ags-weather.json`
+
+interface HourlyForecast {
+  time: string
+  hour: string
+  temp: number
+  icon: string
+}
 
 interface ForecastDay {
   date: string
@@ -21,6 +29,7 @@ interface WeatherDetails {
   windSpeed: number
   description: string
   icon: string
+  hourly: HourlyForecast[]
   forecast: ForecastDay[]
 }
 
@@ -72,14 +81,91 @@ function getDayName(dateStr: string): string {
   return date.toLocaleDateString("en-US", { weekday: "short" })
 }
 
-// Store custom location
-let customLat = LATITUDE
-let customLon = LONGITUDE
-let customLocationName = "Current Location"
+// Store custom location state
+let customLocationName = ""
+let isUsingCurrentLocation = true
 
-function fetchWeatherDetails(): WeatherDetails | null {
+function formatHour(timeStr: string): string {
+  const date = new Date(timeStr)
+  const now = new Date()
+  if (date.getHours() === now.getHours() && date.getDate() === now.getDate()) {
+    return "Now"
+  }
+  return date.toLocaleTimeString("en-US", { hour: "numeric", hour12: true })
+}
+
+// Read weather details from systemd-maintained cache (instant, no network)
+function readWeatherFromCache(): { details: WeatherDetails | null; location: string } {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${customLat}&longitude=${customLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=5`
+    const [ok, contents] = GLib.file_get_contents(CACHE_FILE)
+    if (ok && contents) {
+      const cache = JSON.parse(new TextDecoder().decode(contents))
+      if (cache.weather?.current && cache.weather?.daily) {
+        const code = cache.weather.current.weather_code
+        const info = getWeatherInfo(code)
+
+        // Parse hourly data (next 5 hours starting from current)
+        const hourly: HourlyForecast[] = []
+        if (cache.weather.hourly?.time) {
+          const now = new Date()
+          const currentHour = now.getHours()
+          let count = 0
+          for (let i = 0; i < cache.weather.hourly.time.length && count < 5; i++) {
+            const hourTime = new Date(cache.weather.hourly.time[i])
+            if (hourTime >= now || (hourTime.getDate() === now.getDate() && hourTime.getHours() >= currentHour)) {
+              const hourCode = cache.weather.hourly.weather_code[i]
+              const hourInfo = getWeatherInfo(hourCode)
+              hourly.push({
+                time: cache.weather.hourly.time[i],
+                hour: formatHour(cache.weather.hourly.time[i]),
+                temp: Math.round(cache.weather.hourly.temperature_2m[i]),
+                icon: hourInfo.icon,
+              })
+              count++
+            }
+          }
+        }
+
+        const forecast: ForecastDay[] = cache.weather.daily.time.map(
+          (date: string, i: number) => {
+            const dayCode = cache.weather.daily.weather_code[i]
+            const dayInfo = getWeatherInfo(dayCode)
+            return {
+              date,
+              dayName: getDayName(date),
+              high: Math.round(cache.weather.daily.temperature_2m_max[i]),
+              low: Math.round(cache.weather.daily.temperature_2m_min[i]),
+              code: dayCode,
+              icon: dayInfo.icon,
+            }
+          }
+        )
+
+        return {
+          details: {
+            temp: Math.round(cache.weather.current.temperature_2m),
+            feelsLike: Math.round(cache.weather.current.apparent_temperature),
+            humidity: cache.weather.current.relative_humidity_2m,
+            windSpeed: Math.round(cache.weather.current.wind_speed_10m),
+            description: info.desc,
+            icon: info.icon,
+            hourly,
+            forecast,
+          },
+          location: cache.location || "Unknown",
+        }
+      }
+    }
+  } catch {
+    // Cache not ready
+  }
+  return { details: null, location: "Unknown" }
+}
+
+// Fetch weather for a searched location (only used for non-current locations)
+function fetchWeatherForLocation(lat: number, lon: number): WeatherDetails | null {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=5&forecast_hours=6`
 
     const [ok, stdout] = GLib.spawn_command_line_sync(`curl -s "${url}"`)
 
@@ -90,6 +176,28 @@ function fetchWeatherDetails(): WeatherDetails | null {
       if (data.current && data.daily) {
         const code = data.current.weather_code
         const info = getWeatherInfo(code)
+
+        // Parse hourly data
+        const hourly: HourlyForecast[] = []
+        if (data.hourly?.time) {
+          const now = new Date()
+          const currentHour = now.getHours()
+          let count = 0
+          for (let i = 0; i < data.hourly.time.length && count < 5; i++) {
+            const hourTime = new Date(data.hourly.time[i])
+            if (hourTime >= now || (hourTime.getDate() === now.getDate() && hourTime.getHours() >= currentHour)) {
+              const hourCode = data.hourly.weather_code[i]
+              const hourInfo = getWeatherInfo(hourCode)
+              hourly.push({
+                time: data.hourly.time[i],
+                hour: formatHour(data.hourly.time[i]),
+                temp: Math.round(data.hourly.temperature_2m[i]),
+                icon: hourInfo.icon,
+              })
+              count++
+            }
+          }
+        }
 
         const forecast: ForecastDay[] = data.daily.time.map(
           (date: string, i: number) => {
@@ -113,6 +221,7 @@ function fetchWeatherDetails(): WeatherDetails | null {
           windSpeed: Math.round(data.current.wind_speed_10m),
           description: info.desc,
           icon: info.icon,
+          hourly,
           forecast,
         }
       }
@@ -133,17 +242,36 @@ function searchLocation(query: string): Array<{ name: string; lat: number; lon: 
       const data = JSON.parse(text)
 
       if (data.results) {
-        return data.results.map((r: { name: string; admin1?: string; country: string; latitude: number; longitude: number }) => ({
-          name: `${r.name}${r.admin1 ? ", " + r.admin1 : ""}, ${r.country}`,
-          lat: r.latitude,
-          lon: r.longitude,
-        }))
+        return data.results.map((r: { name: string; admin1?: string; country: string; latitude: number; longitude: number; postcode?: string }) => {
+          // Format: "City, State ZIP" (no country)
+          let name = r.name
+          if (r.admin1) name += `, ${r.admin1}`
+          if (r.postcode) name += ` ${r.postcode}`
+          return { name, lat: r.latitude, lon: r.longitude }
+        })
       }
     }
   } catch {
     // ignore
   }
   return []
+}
+
+// Track selected location for searched locations
+let selectedLocation: { lat: number; lon: number } | null = null
+
+const CONFIG_FILE = `${GLib.get_user_config_dir()}/ags/weather.conf`
+
+// Save location to config file (persists for systemd service)
+function saveLocationToConfig(lat: number, lon: number): void {
+  try {
+    const content = `# AGS Weather Configuration\n# Set via weather popup search\nLAT=${lat}\nLON=${lon}\n`
+    GLib.file_set_contents(CONFIG_FILE, content)
+    // Trigger systemd service to update cache with new location
+    GLib.spawn_command_line_async("systemctl --user start ags-weather.service")
+  } catch {
+    // ignore
+  }
 }
 
 export default function WeatherPopup() {
@@ -154,9 +282,11 @@ export default function WeatherPopup() {
   // UI references
   let winRef: Astal.Window | null = null
   let titleLabel: Gtk.Label
+  let subtitleLabel: Gtk.Label
   let searchEntry: Gtk.Entry
   let resultsBox: Gtk.Box
   let currentWeatherBox: Gtk.Box
+  let hourlyBox: Gtk.Box
   let forecastBox: Gtk.Box
 
   // Helper: Force window to recalculate size (needed for layer shell windows)
@@ -167,8 +297,10 @@ export default function WeatherPopup() {
   function updateWeatherDisplay() {
     if (!weatherData) return
 
-    // Update title
+    // Update title and subtitle
     titleLabel.label = customLocationName
+    subtitleLabel.label = "Current Location"
+    subtitleLabel.visible = isUsingCurrentLocation
 
     // Clear current weather box
     let child = currentWeatherBox.get_first_child()
@@ -228,6 +360,40 @@ export default function WeatherPopup() {
     currentContainer.append(weatherMain)
     currentContainer.append(detailsBox)
     currentWeatherBox.append(currentContainer)
+
+    // Clear and rebuild hourly forecast
+    child = hourlyBox.get_first_child()
+    while (child) {
+      const next = child.get_next_sibling()
+      hourlyBox.remove(child)
+      child = next
+    }
+
+    if (weatherData.hourly && weatherData.hourly.length > 0) {
+      const hourlyList = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, homogeneous: true })
+      hourlyList.add_css_class("hourly-list")
+
+      for (const hour of weatherData.hourly) {
+        const hourBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, halign: Gtk.Align.CENTER })
+        hourBox.add_css_class("hourly-item")
+
+        const hourLabel = new Gtk.Label({ label: hour.hour })
+        hourLabel.add_css_class("hourly-time")
+
+        const hourIcon = new Gtk.Label({ label: hour.icon })
+        hourIcon.add_css_class("hourly-icon")
+
+        const tempLabel = new Gtk.Label({ label: `${hour.temp}°` })
+        tempLabel.add_css_class("hourly-temp")
+
+        hourBox.append(hourLabel)
+        hourBox.append(hourIcon)
+        hourBox.append(tempLabel)
+        hourlyList.append(hourBox)
+      }
+
+      hourlyBox.append(hourlyList)
+    }
 
     // Clear and rebuild forecast
     child = forecastBox.get_first_child()
@@ -302,14 +468,27 @@ export default function WeatherPopup() {
       btn.set_child(box)
 
       btn.connect("clicked", () => {
-        customLat = result.lat
-        customLon = result.lon
-        customLocationName = result.name
+        // Save to config and trigger cache update
+        saveLocationToConfig(result.lat, result.lon)
+        selectedLocation = { lat: result.lat, lon: result.lon }
+        customLocationName = result.name  // Show search name immediately
+        isUsingCurrentLocation = true
         searchResults = []
         updateSearchResults()
         searchEntry.text = ""
-        weatherData = fetchWeatherDetails()
+        // Fetch immediately while cache updates in background
+        weatherData = fetchWeatherForLocation(result.lat, result.lon)
         updateWeatherDisplay()
+        // After cache updates (2s), re-read to get full name with zip
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
+          const cached = readWeatherFromCache()
+          if (cached.location && cached.location !== "Unknown") {
+            customLocationName = cached.location
+            weatherData = cached.details
+            updateWeatherDisplay()
+          }
+          return GLib.SOURCE_REMOVE
+        })
       })
 
       resultsBox.append(btn)
@@ -359,19 +538,39 @@ export default function WeatherPopup() {
   const header = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL })
   header.add_css_class("weather-header")
 
-  titleLabel = new Gtk.Label({ label: customLocationName, hexpand: true, halign: Gtk.Align.START })
+  // Title box with location name and "Current Location" subtitle
+  const titleBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, hexpand: true, halign: Gtk.Align.START })
+
+  titleLabel = new Gtk.Label({ label: customLocationName, halign: Gtk.Align.START, wrap: true })
   titleLabel.add_css_class("popup-title")
+
+  subtitleLabel = new Gtk.Label({ label: "Current Location", halign: Gtk.Align.START, visible: isUsingCurrentLocation })
+  subtitleLabel.add_css_class("location-subtitle")
+
+  titleBox.append(titleLabel)
+  titleBox.append(subtitleLabel)
+
+  // Helper to load weather (cache for current, network for searched)
+  function loadWeather() {
+    if (isUsingCurrentLocation) {
+      const cached = readWeatherFromCache()
+      weatherData = cached.details
+      customLocationName = cached.location
+    } else if (selectedLocation) {
+      weatherData = fetchWeatherForLocation(selectedLocation.lat, selectedLocation.lon)
+    }
+    updateWeatherDisplay()
+  }
 
   const refreshBtn = new Gtk.Button()
   refreshBtn.add_css_class("refresh-btn")
   const refreshIcon = new Gtk.Label({ label: "󰑓" })
   refreshBtn.set_child(refreshIcon)
   refreshBtn.connect("clicked", () => {
-    weatherData = fetchWeatherDetails()
-    updateWeatherDisplay()
+    loadWeather()
   })
 
-  header.append(titleLabel)
+  header.append(titleBox)
   header.append(refreshBtn)
 
   // Search section
@@ -391,7 +590,19 @@ export default function WeatherPopup() {
   // Current weather
   currentWeatherBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
 
-  // Forecast section
+  // Hourly forecast section
+  const hourlySection = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
+  hourlySection.add_css_class("hourly-section")
+
+  const hourlyTitle = new Gtk.Label({ label: "NEXT 5 HOURS", halign: Gtk.Align.START })
+  hourlyTitle.add_css_class("section-title")
+
+  hourlyBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
+
+  hourlySection.append(hourlyTitle)
+  hourlySection.append(hourlyBox)
+
+  // Daily forecast section
   const forecastSection = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
   forecastSection.add_css_class("forecast-section")
 
@@ -403,10 +614,11 @@ export default function WeatherPopup() {
   forecastSection.append(forecastTitle)
   forecastSection.append(forecastBox)
 
-  // Assemble
-  content.append(header)
+  // Assemble - search at top, then header/location, then weather
   content.append(searchSection)
+  content.append(header)
   content.append(currentWeatherBox)
+  content.append(hourlySection)
   content.append(forecastSection)
 
   win.set_child(content)
@@ -425,13 +637,14 @@ export default function WeatherPopup() {
   // Refresh on show
   win.connect("notify::visible", () => {
     if (win.visible) {
-      weatherData = fetchWeatherDetails()
-      updateWeatherDisplay()
+      loadWeather()
     }
   })
 
-  // Initial fetch
-  weatherData = fetchWeatherDetails()
+  // Initialize from cache (instant, no network)
+  const cached = readWeatherFromCache()
+  weatherData = cached.details
+  customLocationName = cached.location
   GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
     updateWeatherDisplay()
     return GLib.SOURCE_REMOVE
