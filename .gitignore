@@ -1,0 +1,17 @@
+# AGS build artifacts
+ags/@girs/
+ags/node_modules/
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups created by install script
+*.bak

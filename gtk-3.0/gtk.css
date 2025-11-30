@@ -1,0 +1,200 @@
+/* ============================================================================
+ * GTK3 Custom Theme Overlay - Dark Purple (AGS Matching)
+ * ============================================================================
+ * Overlays on Breeze-Dark to add purple accents
+ */
+
+@import 'colors.css';
+
+/* Set default font */
+* {
+  font-family: "Hack Nerd Font", "JetBrains Mono", monospace;
+}
+
+/* Override accent colors with purple */
+@define-color theme_selected_bg_color #9d4edd;
+@define-color theme_selected_fg_color #ffffff;
+@define-color accent_bg_color #9d4edd;
+@define-color accent_fg_color #ffffff;
+@define-color accent_color #9d4edd;
+
+/* Window backgrounds */
+@define-color theme_bg_color #121218;
+@define-color theme_fg_color #e0e0e0;
+@define-color theme_base_color #0d0d0d;
+@define-color theme_text_color #e0e0e0;
+
+/* Insensitive/disabled state */
+@define-color insensitive_bg_color #1a1a2e;
+@define-color insensitive_fg_color #606060;
+@define-color insensitive_base_color #0d0d0d;
+
+/* Borders */
+@define-color borders rgba(255, 255, 255, 0.06);
+
+/* Links */
+@define-color link_color #9d4edd;
+@define-color link_visited_color #5a189a;
+
+/* Error colors */
+@define-color error_color #e84057;
+@define-color warning_color #f67400;
+@define-color success_color #50fa7b;
+
+/* Apply backgrounds */
+window, dialog {
+  background-color: #121218;
+  color: #e0e0e0;
+}
+
+/* Entry fields */
+entry, textview text, treeview {
+  background-color: #0d0d0d;
+  color: #e0e0e0;
+}
+
+entry:focus {
+  border-color: #9d4edd;
+  box-shadow: 0 0 0 2px rgba(157, 78, 221, 0.25);
+}
+
+/* Selection */
+*:selected, selection {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+/* Buttons */
+button {
+  border-radius: 6px;
+}
+
+button:hover {
+  background-color: #252538;
+}
+
+button:checked, button.suggested-action {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+button.destructive-action {
+  background-color: #e84057;
+  color: #ffffff;
+}
+
+/* Checkboxes and radio buttons */
+check:checked, radio:checked {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+/* Switches */
+switch:checked {
+  background-color: #9d4edd;
+}
+
+switch:checked slider {
+  background-color: #ffffff;
+}
+
+/* Progress bars */
+progressbar progress {
+  background-color: #9d4edd;
+}
+
+progressbar trough {
+  background-color: #252538;
+}
+
+/* Scales/sliders */
+scale highlight {
+  background-color: #9d4edd;
+}
+
+scale trough {
+  background-color: #252538;
+}
+
+/* Scrollbars */
+scrollbar slider {
+  background-color: rgba(157, 78, 221, 0.5);
+  border-radius: 4px;
+}
+
+scrollbar slider:hover {
+  background-color: rgba(157, 78, 221, 0.7);
+}
+
+/* Menu items */
+menuitem:hover {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+/* Notebook tabs */
+notebook tab:checked {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+/* Tooltips */
+tooltip, tooltip.background {
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+/* Info bars */
+infobar.info {
+  background-color: rgba(157, 78, 221, 0.15);
+  color: #9d4edd;
+}
+
+infobar.warning {
+  background-color: rgba(246, 116, 0, 0.15);
+  color: #f67400;
+}
+
+infobar.error {
+  background-color: rgba(232, 64, 87, 0.15);
+  color: #e84057;
+}
+
+/* Spinners */
+spinner {
+  color: #9d4edd;
+}
+
+/* Header bar */
+headerbar {
+  background-color: #121218;
+  color: #e0e0e0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Sidebar */
+.sidebar, placessidebar {
+  background-color: #121218;
+}
+
+.sidebar row:selected, placessidebar row:selected {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+/* Lists and tree views */
+list row:selected, treeview:selected {
+  background-color: #9d4edd;
+  color: #ffffff;
+}
+
+list row:hover:not(:selected), treeview:hover:not(:selected) {
+  background-color: #252538;
+}
+
+/* Focus */
+*:focus {
+  outline-color: #9d4edd;
+}
