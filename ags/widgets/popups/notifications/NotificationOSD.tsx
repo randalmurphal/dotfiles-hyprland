@@ -5,7 +5,38 @@ import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd?version=0.1"
 import AstalHyprland from "gi://AstalHyprland?version=0.1"
 
-const NOTIFICATION_TIMEOUT = 5000 // 5 seconds
+const NOTIFICATION_TIMEOUT = 4000 // 4 seconds
+
+// Apps to ignore notifications from (media players, etc.)
+const IGNORED_APPS = [
+  "spotify",
+  "Spotify",
+  "playerctl",
+  "mpv",
+  "vlc",
+  "rhythmbox",
+  "clementine",
+  "audacious",
+  "amarok",
+]
+
+// Check if notification should be ignored
+function shouldIgnore(notification: AstalNotifd.Notification): boolean {
+  const appName = notification.app_name?.toLowerCase() || ""
+
+  // Ignore media player notifications
+  if (IGNORED_APPS.some(app => appName.includes(app.toLowerCase()))) {
+    return true
+  }
+
+  // Ignore notifications with "Now Playing" or similar in summary
+  const summary = notification.summary?.toLowerCase() || ""
+  if (summary.includes("now playing") || summary.includes("paused")) {
+    return true
+  }
+
+  return false
+}
 
 // Get urgency CSS class
 function getUrgencyClass(urgency: AstalNotifd.Urgency): string {
@@ -39,57 +70,53 @@ export function NotificationOSD() {
   // Create a toast widget for a notification
   function createToast(notification: AstalNotifd.Notification): Gtk.Box {
     const toast = new Gtk.Box({
-      orientation: Gtk.Orientation.VERTICAL,
-      spacing: 4,
+      orientation: Gtk.Orientation.HORIZONTAL,
+      spacing: 12,
     })
     toast.add_css_class("notification-toast")
     toast.add_css_class(getUrgencyClass(notification.urgency))
 
-    // Header: app name + dismiss
-    const header = new Gtk.Box({ spacing: 8 })
-    header.add_css_class("toast-header")
-
-    const appName = new Gtk.Label({
-      label: notification.app_name || "Notification",
-      xalign: 0,
+    // Content: app name + summary combined
+    const content = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 2,
       hexpand: true,
     })
-    appName.add_css_class("toast-app-name")
-    header.append(appName)
 
+    // Combined title: "App — Summary" or just summary
+    const appName = notification.app_name || ""
+    const summaryText = notification.summary || "Notification"
+    const titleText = appName ? `${appName} — ${summaryText}` : summaryText
+
+    const title = new Gtk.Label({
+      label: titleText,
+      xalign: 0,
+      ellipsize: 3, // END
+    })
+    title.add_css_class("toast-title")
+    content.append(title)
+
+    // Body (if present, single line)
+    if (notification.body) {
+      const body = new Gtk.Label({
+        label: notification.body,
+        xalign: 0,
+        ellipsize: 3, // END
+      })
+      body.add_css_class("toast-body")
+      content.append(body)
+    }
+
+    toast.append(content)
+
+    // Dismiss button
     const dismissBtn = new Gtk.Button({ label: "󰅖" })
     dismissBtn.add_css_class("toast-dismiss")
     dismissBtn.connect("clicked", () => {
       removeToast(notification.id, toast)
       notification.dismiss()
     })
-    header.append(dismissBtn)
-    toast.append(header)
-
-    // Summary
-    const summaryText = notification.summary || notification.app_name || "Notification"
-    const summary = new Gtk.Label({
-      label: summaryText,
-      xalign: 0,
-      wrap: true,
-      hexpand: true,
-    })
-    summary.add_css_class("toast-summary")
-    toast.append(summary)
-
-    // Body (if present)
-    if (notification.body) {
-      const body = new Gtk.Label({
-        label: notification.body,
-        xalign: 0,
-        wrap: true,
-        hexpand: true,
-        lines: 2,
-        ellipsize: 3, // ELLIPSIZE_END
-      })
-      body.add_css_class("toast-body")
-      toast.append(body)
-    }
+    toast.append(dismissBtn)
 
     return toast
   }
@@ -115,8 +142,10 @@ export function NotificationOSD() {
 
   // Show a notification toast
   function showToast(notification: AstalNotifd.Notification) {
-    // Skip transient notifications that shouldn't persist
-    // But we still show them as OSD
+    // Skip media player and other ignored notifications
+    if (shouldIgnore(notification)) {
+      return
+    }
 
     const toast = createToast(notification)
     toastContainer.prepend(toast) // Newest at top
