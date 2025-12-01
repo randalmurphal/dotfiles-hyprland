@@ -7,10 +7,9 @@ import AstalHyprland from "gi://AstalHyprland?version=0.1"
 
 const NOTIFICATION_TIMEOUT = 4000 // 4 seconds
 
-// Apps to ignore notifications from (media players, etc.)
-const IGNORED_APPS = [
+// Apps to always ignore notifications from (media players)
+const ALWAYS_IGNORED_APPS = [
   "spotify",
-  "Spotify",
   "playerctl",
   "mpv",
   "vlc",
@@ -20,12 +19,35 @@ const IGNORED_APPS = [
   "amarok",
 ]
 
+// Check if a PID is a descendant of another PID (or the same)
+function isPidDescendantOf(childPid: number, parentPid: number): boolean {
+  if (childPid === parentPid) return true
+  try {
+    // Walk up the process tree from childPid
+    let currentPid = childPid
+    for (let i = 0; i < 20; i++) { // Max 20 levels deep
+      const result = GLib.spawn_command_line_sync(`ps -o ppid= -p ${currentPid}`)
+      if (result[0] && result[1]) {
+        const ppid = parseInt(new TextDecoder().decode(result[1]).trim(), 10)
+        if (isNaN(ppid) || ppid <= 1) return false // Reached init
+        if (ppid === parentPid) return true
+        currentPid = ppid
+      } else {
+        return false
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  return false
+}
+
 // Check if notification should be ignored
-function shouldIgnore(notification: AstalNotifd.Notification): boolean {
+function shouldIgnore(notification: AstalNotifd.Notification, hyprland: AstalHyprland.Hyprland): boolean {
   const appName = notification.app_name?.toLowerCase() || ""
 
-  // Ignore media player notifications
-  if (IGNORED_APPS.some(app => appName.includes(app.toLowerCase()))) {
+  // Always ignore media player notifications
+  if (ALWAYS_IGNORED_APPS.some(app => appName.includes(app))) {
     return true
   }
 
@@ -33,6 +55,37 @@ function shouldIgnore(notification: AstalNotifd.Notification): boolean {
   const summary = notification.summary?.toLowerCase() || ""
   if (summary.includes("now playing") || summary.includes("paused")) {
     return true
+  }
+
+  // Per-window notification filtering using sender PID
+  // If the notification sender is a descendant of the focused window, ignore it
+  try {
+    const focusedClient = hyprland.get_focused_client()
+    if (focusedClient && appName) {
+      const focusedClass = focusedClient.class?.toLowerCase() || ""
+      const focusedPid = focusedClient.pid
+
+      // Direct match: notification app matches focused window class
+      if (focusedClass && appName.includes(focusedClass)) {
+        return true
+      }
+      if (focusedClass.includes(appName)) {
+        return true
+      }
+
+      // Get sender PID from notification hints (if available)
+      const senderPidHint = notification.get_hint("sender-pid")
+      if (senderPidHint && focusedPid) {
+        // The hint is a GLib.Variant, need to extract the value
+        const senderPid = senderPidHint.get_int64 ? senderPidHint.get_int64() :
+                         senderPidHint.unpack ? senderPidHint.unpack() : null
+        if (senderPid && isPidDescendantOf(senderPid, focusedPid)) {
+          return true
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
   }
 
   return false
@@ -142,8 +195,8 @@ export function NotificationOSD() {
 
   // Show a notification toast
   function showToast(notification: AstalNotifd.Notification) {
-    // Skip media player and other ignored notifications
-    if (shouldIgnore(notification)) {
+    // Skip media player notifications and notifications from focused app
+    if (shouldIgnore(notification, hyprland)) {
       return
     }
 
