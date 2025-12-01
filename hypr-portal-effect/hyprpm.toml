@@ -1,0 +1,13 @@
+[repository]
+name = "hypr-portal-effect"
+authors = ["Randy"]
+commit_pins = []
+
+[hypr-portal-effect]
+description = "Black hole portal effect for window close animations - sucks windows into a swirling vortex"
+authors = ["Randy"]
+output = "hypr-portal-effect.so"
+build = [
+    "cmake -B build",
+    "cmake --build build --config Release -j`nproc`"
+]
