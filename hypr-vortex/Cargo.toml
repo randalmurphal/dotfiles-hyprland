@@ -1,0 +1,45 @@
+[package]
+name = "hypr-vortex"
+version = "0.2.0"
+edition = "2021"
+description = "Extensible window close animations for Hyprland (Vortex, Shatter, etc.)"
+
+[dependencies]
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Wayland - layer-shell overlay
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+smithay-client-toolkit = { version = "0.19", features = ["calloop"] }
+
+# GPU rendering
+wgpu = "22"
+raw-window-handle = "0.6"
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# Math
+glam = "0.29"
+
+# Parallelization
+rayon = "1.10"
+
+# Image handling (for fallback/debug)
+image = "0.25"
+
+# Time
+instant = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
