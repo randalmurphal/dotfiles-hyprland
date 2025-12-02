@@ -149,37 +149,40 @@ impl OverlayState {
 }
 
 /// CPU rendering for vortex effect using rayon for parallelization.
+/// Spaghettification: content stretches into thin strands that spiral into the black hole.
 fn render_cpu_vortex(
     canvas: &mut [u8],
     screenshot_data: &[u8],
     win_w: usize,
     win_h: usize,
     surf_w: usize,
-    surf_h: usize,
+    _surf_h: usize,
     offset_x: usize,
     offset_y: usize,
     progress: f32,
 ) {
     let center_x = 0.5f32;
     let center_y = 0.5f32;
-    let spin_speed = 2.5f32;
-    let pull_strength = 1.8f32;
+    let tau = std::f32::consts::TAU;
 
-    // Process rows in parallel, starting from offset_y
+    // The singularity - black void at center
+    let singularity_radius = 0.03 + progress * 0.02;
+
+    // x^4 acceleration - slow start, fast end
+    let accel = progress.powi(4);
+
+    // Process rows in parallel
     canvas
         .par_chunks_mut(surf_w * 4)
         .enumerate()
         .for_each(|(surf_y, row)| {
-            // Check if this row overlaps with the window area
             if surf_y < offset_y || surf_y >= offset_y + win_h {
                 return;
             }
             let y = surf_y - offset_y;
-
             let v = y as f32 / win_h as f32;
             let dy = v - center_y;
 
-            // Only process the window width at the correct offset
             let x_end = (offset_x + win_w).min(surf_w);
             for surf_x in offset_x..x_end {
                 let x = surf_x - offset_x;
@@ -188,46 +191,129 @@ fn render_cpu_vortex(
 
                 let dist = (dx * dx + dy * dy).sqrt();
                 let angle = dy.atan2(dx);
-
-                // Vortex distortion
-                let rotation = spin_speed * progress * (1.0 - dist * 0.5) * std::f32::consts::TAU;
-                let new_angle = angle + rotation;
-
-                // Pull toward center
-                let pull_factor = 1.0 - progress * pull_strength * (1.0 - dist * 0.3);
-                let new_dist = dist * pull_factor.max(0.0);
-
-                let new_u = center_x + new_angle.cos() * new_dist;
-                let new_v = center_y + new_angle.sin() * new_dist;
-
                 let dst_idx = surf_x * 4;
 
-                if new_u >= 0.0 && new_u <= 1.0 && new_v >= 0.0 && new_v <= 1.0 {
-                    let src_x = (new_u * win_w as f32) as usize;
-                    let src_y = (new_v * win_h as f32) as usize;
-                    let src_idx = (src_y * win_w + src_x) * 4;
+                // Inside the singularity = SOLID BLACK
+                if dist < singularity_radius {
+                    row[dst_idx] = 0;
+                    row[dst_idx + 1] = 0;
+                    row[dst_idx + 2] = 0;
+                    row[dst_idx + 3] = 255;
+                    continue;
+                }
 
-                    if src_idx + 3 < screenshot_data.len() && dst_idx + 3 < row.len() {
-                        let r = screenshot_data[src_idx];
-                        let g = screenshot_data[src_idx + 1];
-                        let b = screenshot_data[src_idx + 2];
+                // Accretion disk - many thin wispy light strands
+                let disk_outer = singularity_radius + 0.06;
+                if dist < disk_outer && dist > singularity_radius {
+                    let num_strands = 32;
+                    let rotation = accel * tau * 3.0;
 
-                        // Edge darkening - gets darker toward edges as progress increases
-                        let darkness = 1.0 - (dist * progress * 0.4).min(0.4);
+                    let mut total_intensity = 0.0f32;
 
-                        // Fade out - lasts the full duration (0->100% = 255->0 alpha)
-                        let fade = 1.0 - progress;
-                        let alpha = (255.0 * fade) as u8;
+                    for i in 0..num_strands {
+                        // Pseudo-random per strand (deterministic based on index)
+                        let seed = i as f32 * 7.31;
+                        let rand1 = (seed.sin() * 43758.5453).fract();
+                        let rand2 = ((seed + 1.0).cos() * 22578.1459).fract();
+                        let rand3 = ((seed * 2.3).sin() * 19283.2918).fract();
 
-                        let final_r = (r as f32 * darkness) as u8;
-                        let final_g = (g as f32 * darkness) as u8;
-                        let final_b = (b as f32 * darkness) as u8;
+                        // Variable properties per strand
+                        let strand_brightness = 0.3 + rand1 * 0.7; // 0.3 to 1.0
+                        let strand_length = 0.02 + rand2 * 0.04; // How far it extends
+                        let strand_width = 0.008 + rand3 * 0.015; // Very thin
+                        let spiral_tight = 12.0 + rand1 * 8.0; // 12-20, tight spirals
 
-                        row[dst_idx] = final_b;
-                        row[dst_idx + 1] = final_g;
-                        row[dst_idx + 2] = final_r;
-                        row[dst_idx + 3] = alpha;
+                        let strand_base = (i as f32 / num_strands as f32) * tau;
+                        let expected_angle = strand_base + spiral_tight * dist + rotation;
+
+                        let mut angle_diff = (angle - expected_angle).rem_euclid(tau);
+                        if angle_diff > tau / 2.0 {
+                            angle_diff = tau - angle_diff;
+                        }
+
+                        // Only render if within this strand's length
+                        let strand_start = singularity_radius;
+                        let strand_end = singularity_radius + strand_length;
+                        if dist > strand_start && dist < strand_end && angle_diff < strand_width {
+                            let core = 1.0 - (angle_diff / strand_width);
+                            // Fade at the outer tip
+                            let tip_fade = 1.0 - ((dist - strand_start) / strand_length).powf(2.0);
+                            let intensity = core.powf(2.0) * tip_fade * strand_brightness;
+                            total_intensity += intensity;
+                        }
                     }
+
+                    if total_intensity > 0.01 {
+                        let i = total_intensity.min(1.0);
+                        // Purple with brightness variation
+                        let r = (90.0 + 90.0 * i) * i;
+                        let g = (20.0 + 35.0 * i) * i;
+                        let b = (150.0 + 70.0 * i) * i;
+
+                        row[dst_idx] = b.min(255.0) as u8;
+                        row[dst_idx + 1] = g.min(255.0) as u8;
+                        row[dst_idx + 2] = r.min(255.0) as u8;
+                        row[dst_idx + 3] = 255;
+                        continue;
+                    }
+                }
+
+                // === SPIRAL SPAGHETTIFICATION ===
+                // The key: stretch ALONG the spiral (tangentially), compress ACROSS it (radially)
+                // This creates thin strands that wind around the center
+
+                // How much to wind around - more rotations as we approach center
+                // and as animation progresses
+                let spiral_tightness = 1.0 / (dist + 0.05);
+                let total_rotation = accel * spiral_tightness * 3.0 * tau;
+
+                // Tangential stretch: sample from positions that are "behind" on the spiral
+                // This elongates content along the spiral path
+                let tangential_stretch = accel * spiral_tightness * 0.4;
+
+                // Radial compression: as things stretch tangentially, they thin radially
+                // Sample from further out = content compressing inward
+                let radial_compression = 1.0 + accel * spiral_tightness * 2.0;
+
+                // Calculate where to sample from
+                // Unwind the spiral: go backwards along the spiral path
+                let sample_angle = angle - total_rotation - tangential_stretch;
+                let sample_dist = dist * radial_compression;
+
+                let sample_u = center_x + sample_angle.cos() * sample_dist;
+                let sample_v = center_y + sample_angle.sin() * sample_dist;
+
+                // Outside bounds = that strand has been consumed
+                if sample_u < 0.0 || sample_u > 1.0 || sample_v < 0.0 || sample_v > 1.0 {
+                    row[dst_idx] = 0;
+                    row[dst_idx + 1] = 0;
+                    row[dst_idx + 2] = 0;
+                    row[dst_idx + 3] = 0;
+                    continue;
+                }
+
+                let src_x = (sample_u * win_w as f32) as usize;
+                let src_y = (sample_v * win_h as f32) as usize;
+                let src_idx = (src_y * win_w + src_x) * 4;
+
+                if src_idx + 3 < screenshot_data.len() && dst_idx + 3 < row.len() {
+                    let r = screenshot_data[src_idx];
+                    let g = screenshot_data[src_idx + 1];
+                    let b = screenshot_data[src_idx + 2];
+
+                    // Darken as it approaches the hole
+                    let near_hole = (0.2 - dist).max(0.0) / 0.2;
+                    let darkness = 1.0 - near_hole * 0.5;
+
+                    row[dst_idx] = (b as f32 * darkness) as u8;
+                    row[dst_idx + 1] = (g as f32 * darkness) as u8;
+                    row[dst_idx + 2] = (r as f32 * darkness) as u8;
+                    row[dst_idx + 3] = 255;
+                } else {
+                    row[dst_idx] = 0;
+                    row[dst_idx + 1] = 0;
+                    row[dst_idx + 2] = 0;
+                    row[dst_idx + 3] = 0;
                 }
             }
         });

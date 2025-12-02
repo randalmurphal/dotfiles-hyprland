@@ -1,6 +1,6 @@
 # hypr-vortex
 
-Window close animation daemon for Hyprland. Creates vortex/black-hole effects when closing windows.
+Window close animation daemon for Hyprland. Creates a spaghettification black hole effect when closing windows - content stretches into spiral strands that get sucked into a central singularity.
 
 ## Architecture
 
@@ -13,15 +13,23 @@ Super+Q → vortex-close.sh → Unix socket → hypr-vortex daemon
                                     4. Close window after animation
 ```
 
+## Visual Effect
+
+The animation creates a black hole effect with:
+- **Spaghettification**: Window content stretches tangentially and compresses radially as it spirals into the center
+- **Black singularity**: Growing void at center (0.03 → 0.05 radius)
+- **Purple accretion disk**: 32 wispy light strands with variable brightness, length, and spiral tightness
+- **x^4 acceleration**: Slow dramatic start, violent collapse at end
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `src/main.rs` | Daemon entry, socket IPC, connection handler |
-| `src/overlay.rs` | Layer-shell surface, CPU vortex rendering |
+| `src/overlay.rs` | Layer-shell surface, CPU vortex rendering, spaghettification math |
 | `src/screenshot.rs` | Screenshot capture via grim |
 | `src/animation.rs` | Animation trait and registry |
-| `src/animations/*.rs` | Animation implementations (vortex, fade, shrink) |
+| `src/animations/vortex.rs` | Animation timing (900ms, x^4 ease) |
 | `vortex-close.sh` | Script bound to Super+Q |
 
 ## Building
@@ -50,19 +58,17 @@ exec-once = ~/.local/bin/hypr-vortex
 ## Animation Tuning
 
 Edit `src/overlay.rs` `render_cpu_vortex()`:
-- `spin_speed` (2.5): Rotation speed multiplier
-- `pull_strength` (1.8): How fast pixels pull to center
-- Duration in `src/animations/vortex.rs` (800ms default)
+- `singularity_radius`: Size of central black void
+- `disk_outer`: How far accretion disk extends
+- `num_strands`: Number of purple light wisps (32)
+- Strand properties: brightness (0.3-1.0), length (0.02-0.06), width, spiral tightness
+
+Duration in `src/animations/vortex.rs` (900ms default)
 
 ## Technical Notes
 
 - Uses `alpha 0` instead of special workspace to preserve tiling during animation
 - Multi-monitor: uses `rem_euclid` for negative x coordinates (left monitor)
-- CPU rendering with rayon parallelization (~60fps on RTX 3090)
+- CPU rendering with rayon parallelization (~60fps)
 - ARGB8888 SHM buffers for Wayland layer-shell
-
-## Future Improvements
-
-- GPU rendering via wgpu (shader exists in vortex.rs but not wired up)
-- Per-app animation selection
-- Configurable parameters via config file
+- Pseudo-random strand variation using deterministic sin/cos seeding

@@ -14,7 +14,7 @@ pub struct VortexAnimation {
 impl VortexAnimation {
     pub fn new() -> Self {
         Self {
-            duration_ms: 800,  // Longer duration for smoother animation
+            duration_ms: 900,  // Slow start, violent acceleration
             spin_speed: 3.0,
             pull_strength: 2.0,
         }
